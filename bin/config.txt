@@ -1,0 +1,14 @@
+iterationCount=10000
+hoursPerUpdate=12
+totalUsers=100
+initBridgeCount=10
+blockChance=0.1
+reportChance=0.4
+maxSingleUserBridgeAccessPerTimeInterval=100
+minSingleUserBridgeAccessPerTimeInterval=1
+geoIPErrorChance=0.05
+srandSeed=1804289383
+regionList=ca,ru,cn,us
+censorRegion=cn
+reportThreshold=2
+bridgeStatUsageDiffThreshold=50
