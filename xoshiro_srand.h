@@ -1,5 +1,7 @@
 #pragma once
 
+//Originally from Setbench credit Trevor Brown for this implementation
+
 #include "common.h"
 
 class InitSplitMixer {
