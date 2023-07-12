@@ -54,8 +54,13 @@ public:
 		return (rand() % 100) + 1;
 	}
 
-	void blockFromRegion(int regionIndex) {
+	bool blockFromRegion(int regionIndex) {
+		bool wasUnblocked = true;
+		if (perRegionIndexBlockage.find(regionIndex) != perRegionIndexBlockage.end()) {
+			wasUnblocked = !perRegionIndexBlockage[regionIndex];
+		}		
 		perRegionIndexBlockage[regionIndex] = true;		
+		return wasUnblocked;
 	}
 
 	void progressToNextDay() {

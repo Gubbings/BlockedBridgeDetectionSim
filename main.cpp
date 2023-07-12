@@ -198,6 +198,10 @@ void sequentialSim() {
 	}
 }
 
+void printOutputs() {
+	printf("total_bridges_blocked_by_censor=%ld\n", globals.censor->getBlockedBridgeCount());
+	printf("total_blocks_detected=%ld\n", globals.blockDetector->getDetectedBlockagesCount());
+}
 
 int main(int argc, char** argv) {
 	std::string configFileRelativePath;
@@ -206,6 +210,18 @@ int main(int argc, char** argv) {
     std::cout<<"binary="<<argv[0]<<std::endl;
 
 	//parse args
+	//TODO add these to cmd line arg parse
+	// 	iterationCount
+	// hoursPerUpdate
+	// totalUsers
+	// maxSingleUserBridgeAccessPerTimeInterval
+	// minSingleUserBridgeAccessPerTimeInterval
+	// geoIPErrorChance
+	// srandSee
+	// regionList
+	// censorRegion
+	// reportThreshold
+	// bridgeStatUsageDiffThreshold
 	for (int i=1;i<argc;++i) {
 		if (strcmp(argv[i], "-f") == 0) {
             configFileRelativePath = argv[++i];
@@ -239,4 +255,5 @@ int main(int argc, char** argv) {
 
 	init();
 	sequentialSim();
+	printOutputs();
 }

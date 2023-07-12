@@ -12,6 +12,20 @@
 
 #define MIN_BRIDGE_DB_SIZE 10
 
+struct UserStackNode {
+	UserStackNode* next;
+	User* user;
+
+	UserStackNode() {
+		user = nullptr;
+		next = nullptr;
+	}
+
+	UserStackNode(UserStackNode* _next, User* _user) {
+		user = _user;
+		next = _next;
+	}
+};
 
 class BridgeAuthority {
 private:
@@ -22,7 +36,8 @@ private:
 	std::map<User*, Bridge*> userBridgeMap;	
 
 	//Map bridges to the users that currently have access to them
-	std::map<Bridge*, std::vector<User*>> bridgeUsersMap;
+	// std::map<Bridge*, std::vector<User*>> bridgeUsersMap;
+	std::map<Bridge*, UserStackNode*> bridgeUsersMap;
 	
 	//list of all (unblocked) open entry bridges
 	//we could seperately have invite only if we want to model that
@@ -36,15 +51,19 @@ private:
 	}
 
 	void discardBridge(Bridge* b) {
-		bridgeDB.erase(std::find(bridgeDB.begin(), bridgeDB.end(), b));
-		bridgeUsersMap.erase(b);
+		std::vector<Bridge*>::iterator it = std::find(bridgeDB.begin(), bridgeDB.end(), b);
+		if (it != bridgeDB.end()) {
+			bridgeDB.erase(it);
+			bridgeUsersMap.erase(b);
+		}				
 	}
 
 
-	//todo
+	//todo - fix this to be something more reasonable
 	Bridge* getBridge() {		
 		assert(!bridgeDB.empty());
-		return bridgeDB[0];
+		int bridgeIndex = rng->next(bridgeDB.size() - 1);
+		return bridgeDB[bridgeIndex];
 	}
 
 
@@ -62,7 +81,9 @@ public:
 		else {
 			Bridge* b = getBridge();
 			userBridgeMap[user] = b;
-			bridgeUsersMap[b].push_back(user);
+			// bridgeUsersMap[b].push_back(user);
+			UserStackNode* oldTop = bridgeUsersMap.find(b) == bridgeUsersMap.end() ? nullptr : bridgeUsersMap[b]; 
+			bridgeUsersMap[b] = new UserStackNode(oldTop, user);
 			return b;
 		}
 	}
@@ -72,13 +93,15 @@ public:
 		Bridge* oldBridge = userBridgeMap[user];		
 		discardBridge (oldBridge);				
 
-		if (bridgeDB.size() <= 0) {
-			expandBridgeDB(MIN_BRIDGE_DB_SIZE);
+		if (bridgeDB.size() <= MIN_BRIDGE_DB_SIZE) {
+			expandBridgeDB(MIN_BRIDGE_DB_SIZE * 2);
 		}
 		
 		Bridge* newBridge = getBridge();
 		userBridgeMap[user] = newBridge;
-		bridgeUsersMap[newBridge].push_back(user);
+		UserStackNode* oldTop = bridgeUsersMap.find(newBridge) == bridgeUsersMap.end() ? nullptr : bridgeUsersMap[newBridge]; 		
+		bridgeUsersMap[newBridge] = new UserStackNode(oldTop, user);
+		// bridgeUsersMap[newBridge].push_back(user);
 		return newBridge;
 	}
 
@@ -89,8 +112,14 @@ public:
 	}
 
 	void migrateAllUsersOffBridge(Bridge* b) {
-		for (int i = 0; i < bridgeUsersMap[b].size(); i++) {
-			migrateToNewBridge(bridgeUsersMap[b][i]);
-		}				
+		UserStackNode* top = bridgeUsersMap[b];
+		while (top) {
+			migrateToNewBridge(top->user);
+			top = top->next;			
+		}
+
+		// for (int i = 0; i < bridgeUsersMap[b].size(); i++) {
+		// 	migrateToNewBridge(bridgeUsersMap[b][i]);
+		// }				
 	}
 };

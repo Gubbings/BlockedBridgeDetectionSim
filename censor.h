@@ -5,11 +5,12 @@
 #include <vector>
 
 class Censor {
-	std::vector<Bridge*> knownBridges;	
 	Random64* rng;
 	double blockChance;
 	long blockedBridgeCount = 0;
 public:
+	std::vector<Bridge*> knownBridges;	
+
 	int regionIndex;
 
 	Censor(int _regionIndex, double _blockChance, Random64* _rng) {
@@ -30,9 +31,14 @@ public:
 	}
 
 	void blockBridge(Bridge* b) {
-		b->blockFromRegion(regionIndex);
-		knownBridges.push_back(b);
-		blockedBridgeCount++;
+		if (b->blockFromRegion(regionIndex)) {
+			knownBridges.push_back(b);
+			blockedBridgeCount++;
+		}
+	}
+
+	long getBlockedBridgeCount() {
+		return blockedBridgeCount;
 	}
 
 	// Generic update function to perform tasks per time interval of main

@@ -11,7 +11,7 @@
 
 class User {
 private:
-	uint64_t numReports;
+	uint64_t numReports = 0;
 	int maxAccessesPerUpdate;
 	int minAccesesPerUpdate;
 	double reportChance;
@@ -24,6 +24,16 @@ public:
 	Detector* detector;
 	int regionIndex;
 
+	User(){
+		censor = nullptr;
+		rng = nullptr;
+		reportChance = -1;
+		bridgeAuth = nullptr;
+		detector = nullptr;
+		maxAccessesPerUpdate = -1;
+		minAccesesPerUpdate = -1;
+	}
+
 	User(BridgeAuthority* _bridgeAuth, Detector* _detector, Censor* _censor, 
 	  int _maxAccessesPerUpdate, int _minAccesesPerUpdate, 
 	  double _reportChance, Random64* _rng) {
@@ -34,6 +44,19 @@ public:
 		detector = _detector;
 		maxAccessesPerUpdate = _maxAccessesPerUpdate;
 		minAccesesPerUpdate = _minAccesesPerUpdate;
+	}
+
+	User(User &other) {
+		censor = other.censor;
+		rng = other.rng;
+		reportChance = other.reportChance;
+		bridgeAuth = other.bridgeAuth;
+		detector = other.detector;
+		maxAccessesPerUpdate = other.maxAccessesPerUpdate;
+		minAccesesPerUpdate = other.minAccesesPerUpdate;
+	}
+
+	~User() {
 	}
 
 	void reportBridge() {
