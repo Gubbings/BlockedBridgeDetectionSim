@@ -30,14 +30,12 @@ struct UserStackNode {
 class BridgeAuthority {
 private:
 	double geoIPErrorChance;
+	double messageDropChance;
 	Random64* rng;
 
-	//Map users to the bridges that they currently known about and access	
-	std::map<User*, Bridge*> userBridgeMap;	
-
-	//Map bridges to the users that currently have access to them
-	// std::map<Bridge*, std::vector<User*>> bridgeUsersMap;
-	std::map<Bridge*, UserStackNode*> bridgeUsersMap;
+	//Map users to the bridges that they currently known about and can access	
+	std::map<User*, Bridge**> userBridgeMap;	
+	std::map<User*, int> userNumKnownBridgeMap;	
 	
 	//list of all (unblocked) open entry bridges
 	//we could seperately have invite only if we want to model that
@@ -45,7 +43,7 @@ private:
 
 	void expandBridgeDB(int numNewBridges) {
 		for (int i = 0; i < numNewBridges; i++) {
-			Bridge* b = new Bridge(geoIPErrorChance, rng);
+			Bridge* b = new Bridge(geoIPErrorChance, messageDropChance, rng);
 			bridgeDB.push_back(b);
 		}
 	}
@@ -66,43 +64,58 @@ private:
 		return bridgeDB[bridgeIndex];
 	}
 
+	void migrateUserOffBridge(User* user, Bridge* b) {
+		Bridge** userBridges = userBridgeMap[user];
+		int numKnownBridges = userNumKnownBridgeMap[user];
+		int oldBridgeIndex;
+		for (oldBridgeIndex = 0; oldBridgeIndex < numKnownBridges; oldBridgeIndex++) {
+			if (userBridges[oldBridgeIndex] == b) {
+				break;
+			}
+		}
+
+#ifndef NODEBUG
+		if (oldBridgeIndex >= numKnownBridges) {
+			printf("ERROR: attempting to migrate user off of bridge that the user does not know about\n");
+			exit(-1);
+		}
+#endif
+						
+		Bridge* newBridge = getBridge();
+		userBridgeMap[user][oldBridgeIndex] = newBridge;
+		UserStackNode* oldTop = bridgeUsersMap.find(newBridge) == bridgeUsersMap.end() ? nullptr : bridgeUsersMap[newBridge]; 		
+		bridgeUsersMap[newBridge] = new UserStackNode(oldTop, user);
+		return;
+	}
 
 public:
-	BridgeAuthority(int _initBridgeCount, double _geoIPErrorChance, Random64* rng) {
+	//Map bridges to the users that currently have access to them	
+	std::map<Bridge*, UserStackNode*> bridgeUsersMap;
+
+	BridgeAuthority(int _initBridgeCount, double _geoIPErrorChance, double _messageDropChance, Random64* rng) {
+		messageDropChance = _messageDropChance;
 		geoIPErrorChance = _geoIPErrorChance;
 		bridgeDB.reserve(_initBridgeCount);
 		expandBridgeDB(_initBridgeCount);		
 	}
 
-	Bridge* requestNewBridge(User* user) {
-		if (userBridgeMap.find(user) != userBridgeMap.end()) {
-			return migrateToNewBridge(user);
+	int requestNewBridge(User* user, Bridge** userBridges) {
+		if (userBridgeMap.find(user) != userBridgeMap.end()) {			
+			printf("ERROR: user is requesting new bridge but the user already has bridges\n");
+			exit(-1);			
 		}
 		else {
-			Bridge* b = getBridge();
-			userBridgeMap[user] = b;
-			// bridgeUsersMap[b].push_back(user);
-			UserStackNode* oldTop = bridgeUsersMap.find(b) == bridgeUsersMap.end() ? nullptr : bridgeUsersMap[b]; 
-			bridgeUsersMap[b] = new UserStackNode(oldTop, user);
-			return b;
+			int numBridgesToGive = rng->next(MAX_KNOWN_BRIDGES) + 1;
+			userNumKnownBridgeMap[user] = numBridgesToGive;
+			for (int i = 0; i < numBridgesToGive; i++) {
+				Bridge* b = getBridge();
+				userBridgeMap[user] = userBridges;
+				userBridgeMap[user][i] = b;								
+				UserStackNode* oldTop = bridgeUsersMap.find(b) == bridgeUsersMap.end() ? nullptr : bridgeUsersMap[b]; 
+				bridgeUsersMap[b] = new UserStackNode(oldTop, user);
+			}			
+			return numBridgesToGive;
 		}
-	}
-	
-
-	Bridge* migrateToNewBridge(User* user) {
-		Bridge* oldBridge = userBridgeMap[user];		
-		discardBridge (oldBridge);				
-
-		if (bridgeDB.size() <= MIN_BRIDGE_DB_SIZE) {
-			expandBridgeDB(MIN_BRIDGE_DB_SIZE * 2);
-		}
-		
-		Bridge* newBridge = getBridge();
-		userBridgeMap[user] = newBridge;
-		UserStackNode* oldTop = bridgeUsersMap.find(newBridge) == bridgeUsersMap.end() ? nullptr : bridgeUsersMap[newBridge]; 		
-		bridgeUsersMap[newBridge] = new UserStackNode(oldTop, user);
-		// bridgeUsersMap[newBridge].push_back(user);
-		return newBridge;
 	}
 
 	void publishDailyBridgeStats() {
@@ -114,12 +127,13 @@ public:
 	void migrateAllUsersOffBridge(Bridge* b) {
 		UserStackNode* top = bridgeUsersMap[b];
 		while (top) {
-			migrateToNewBridge(top->user);
+			migrateUserOffBridge(top->user, b);
 			top = top->next;			
 		}
 
-		// for (int i = 0; i < bridgeUsersMap[b].size(); i++) {
-		// 	migrateToNewBridge(bridgeUsersMap[b][i]);
-		// }				
+		discardBridge (b);
+		if (bridgeDB.size() <= MIN_BRIDGE_DB_SIZE) {
+			expandBridgeDB(MIN_BRIDGE_DB_SIZE * 2);
+		}			
 	}
 };

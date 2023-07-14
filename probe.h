@@ -2,24 +2,25 @@
 
 #include "bridge.h"
 #include "censor.h"
+#include <vector>
+
+extern std::vector<Censor*> censors;
 
 class Probe {
-private:
-	Censor* censor;
 public:
 	int regionIndex;
 
-	Probe(int _regionIndex, Censor* _censor) {
+	Probe(int _regionIndex) {
 		regionIndex = _regionIndex;
-		censor = _censor;
 	}
 
 	bool probeBridge(Bridge* b) {
-		if (b->messageFromRegion(regionIndex) > 0) {
-			return true;
+		int response = b->messageFromRegion(regionIndex);
+
+		for (int i = 0; i < censors.size(); i++) {
+			censors[i]->bridgeAccessFromRegionIndex(regionIndex, b);
 		}
-		else {
-			return false;
-		}
+
+		return response > 0;		
 	}
 };

@@ -9,23 +9,27 @@
 #include "xoshiro_srand.h"
 #include "censor.h"
 
+extern std::vector<Censor*> censors;
+
 class User {
 private:
-	uint64_t numReports = 0;
 	int maxAccessesPerUpdate;
 	int minAccesesPerUpdate;
 	double reportChance;
 	Random64* rng;
-	Censor* censor;
+	int numKnownBridges = 0;
 
 public:	
-	Bridge* currentAccessPoint = nullptr;
+	Bridge* knownBridges[MAX_KNOWN_BRIDGES];
+
 	BridgeAuthority* bridgeAuth;
 	Detector* detector;
 	int regionIndex;
+	uint64_t numReports = 0;
+	uint64_t numFailedBridgeAccesses = 0;
+
 
 	User(){
-		censor = nullptr;
 		rng = nullptr;
 		reportChance = -1;
 		bridgeAuth = nullptr;
@@ -34,10 +38,9 @@ public:
 		minAccesesPerUpdate = -1;
 	}
 
-	User(BridgeAuthority* _bridgeAuth, Detector* _detector, Censor* _censor, 
+	User(BridgeAuthority* _bridgeAuth, Detector* _detector, 
 	  int _maxAccessesPerUpdate, int _minAccesesPerUpdate, 
 	  double _reportChance, Random64* _rng) {
-		censor = _censor;
 		rng = _rng;
 		reportChance = _reportChance;
 		bridgeAuth = _bridgeAuth;
@@ -47,7 +50,6 @@ public:
 	}
 
 	User(User &other) {
-		censor = other.censor;
 		rng = other.rng;
 		reportChance = other.reportChance;
 		bridgeAuth = other.bridgeAuth;
@@ -59,32 +61,41 @@ public:
 	~User() {
 	}
 
-	void reportBridge() {
-		detector->reportBridgeFromRegionIndex(currentAccessPoint, regionIndex);
+	void reportBridge(Bridge* b) {
+		detector->reportBridgeFromRegionIndex(b, regionIndex);
 	}
 
-	void accessBridge(double reportChance, Random64* rng) {
-		int response = currentAccessPoint->messageFromRegion(regionIndex);
-		censor->bridgeAccessFromRegionIndex(regionIndex, currentAccessPoint);
+	void accessBridge() {
+		int randomKnownBridgeIndex = rng->next(numKnownBridges);
+		Bridge* b = knownBridges[randomKnownBridgeIndex];
+
+		int response = b->messageFromRegion(regionIndex);
+		
+		for (int i = 0; i < censors.size(); i++) {
+			censors[i]->bridgeAccessFromRegionIndex(regionIndex, b);
+		}
+
 		if (response < 0) {
 			double r = rng->next(100000000) / 1000000.0;
 			if (r < reportChance) {
-				reportBridge();
+				reportBridge(b);
 				numReports++;
 			}
+			numFailedBridgeAccesses++;
 		}
 	}
 
 	// Generic update function to perform tasks per time interval of main
 	// update loop
 	void update() {
-		if (!currentAccessPoint) {
-			currentAccessPoint = bridgeAuth->requestNewBridge(this);
+		if (numKnownBridges == 0) {
+			numKnownBridges = bridgeAuth->requestNewBridge(this, knownBridges);
 		}
 
 		int bridgeAccesses = minAccesesPerUpdate + rng->next(maxAccessesPerUpdate);
 		for (int i = 0; i < bridgeAccesses; i++) {
-			accessBridge(reportChance, rng);
+			accessBridge();
 		}
 	}
+	
 };

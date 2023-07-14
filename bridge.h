@@ -12,12 +12,14 @@ class Bridge {
 private:		
 	std::map<int, bool> perRegionIndexBlockage;
 	double geoIPErrorChance;
+	double messageDropChance;
 	Random64* rng;
 	std::vector<std::map<int, int>> dailyUsagePerRegionIndexHistory;
 	std::map<int, int> currentDailyUsagePerRegionIndex;
 	
 public:
-	Bridge(double _geoIPErroChance, Random64* _rng) {
+	Bridge(double _geoIPErroChance, double _messageDropChance, Random64* _rng) {
+		messageDropChance = _messageDropChance;
 		geoIPErrorChance = _geoIPErroChance;
 		rng = _rng;
 		for (int i = 0; i < regionList.size(); i++) {
@@ -27,7 +29,8 @@ public:
 		currentDailyUsagePerRegionIndex.clear();
 	}
 
-	int messageFromRegion(int trueRegionIndex) {
+	int messageFromRegion(int trueRegionIndex) {		
+		//bridge is blocked from the senders region
 		std::string region = regionList[trueRegionIndex];
 		if (!perRegionIndexBlockage.empty()) {
 			if (perRegionIndexBlockage.find(trueRegionIndex) != perRegionIndexBlockage.end()) {
@@ -37,8 +40,14 @@ public:
 			}
 		}
 
-		int geoIPRegionIndex = trueRegionIndex;
+		//message looks like the bridge is blocked when it really is not
 		double r = rng->next(100000000) / 1000000.0;		
+		if (r < messageDropChance) {
+			return -1;
+		}
+
+		int geoIPRegionIndex = trueRegionIndex;
+		r = rng->next(100000000) / 1000000.0;		
 		if (r < geoIPErrorChance) {
 			geoIPRegionIndex = (geoIPRegionIndex + 1 + rng->next(100)) % regionList.size();
 		}
@@ -64,20 +73,32 @@ public:
 	}
 
 	void progressToNextDay() {
+		//ciel to nearest multiple of 8
+		for (int i = 0; i < regionList.size(); i++) {			
+			currentDailyUsagePerRegionIndex[i] = ((currentDailyUsagePerRegionIndex[i] + 7) & (-8));
+		}
+
 		dailyUsagePerRegionIndexHistory.push_back(currentDailyUsagePerRegionIndex);
 		currentDailyUsagePerRegionIndex.clear();
 	}
 
 	int getCurrentDailyUsageFromRegionIndex(int regionIndex) {
-		return currentDailyUsagePerRegionIndex[regionIndex];
+		//ciel to nearest multiple of 8
+		return ((currentDailyUsagePerRegionIndex[regionIndex] + 7) & (-8));		
 	}
 
 	int getHistoricalDailyUsageFromRegionIndex(int daysPrior, int regionIndex) {
-		int yesterday = dailyUsagePerRegionIndexHistory.size() - 1;
-		int previousDateIndex = yesterday - daysPrior - 1;
+		if (daysPrior <= 0) {
+			printf("ERROR: attempting to get historical bridge stats with 0 or negative days in the past\n");	
+			exit(-1);
+		}
+		
+		int previousDateIndex = dailyUsagePerRegionIndexHistory.size() - daysPrior;		
 		if (previousDateIndex <= dailyUsagePerRegionIndexHistory.size() - 1) {
 			if (dailyUsagePerRegionIndexHistory[previousDateIndex].find(regionIndex) != dailyUsagePerRegionIndexHistory[previousDateIndex].end()){
-				return dailyUsagePerRegionIndexHistory[previousDateIndex][regionIndex];
+				//ciel to nearest multiple of 8
+				//this should be redundant since we did it in progressToNextDay() but going to leave it incase we change progressToNextDay later
+				return ((dailyUsagePerRegionIndexHistory[previousDateIndex][regionIndex] + 7) & (-8));
 			}
 		}
 		return 0;

@@ -3,13 +3,18 @@
 #include "probe.h"
 #include "censor.h"
 #include "bridge.h"
+#include "bridgeAuthority.fwd.h"
+#include "xoshiro_srand.h"
 #include <map>
 #include <vector>
 #include <string>
-#include "bridgeAuthority.fwd.h"
-// #include <utility> 
+#include <algorithm>
+#include <math.h>       
 
+
+#define MAX_NUM_REGIONS 8
 extern std::vector<std::string> regionList;
+extern std::vector<int> censorRegionIndexList;
 
 struct ReportPair {
 	Bridge* bridge;
@@ -28,7 +33,7 @@ struct ReportPair {
 		regionIndex = _ri;
 	}
 
-	ReportPair(ReportPair &other) {
+	ReportPair(ReportPair const &other) {
 		bridge = other.bridge;
 		regionIndex = other.regionIndex;
 	}
@@ -50,38 +55,72 @@ struct ReportPairStackNode {
 class Detector {
 private:
 	BridgeAuthority* bridgeAuth;
-	Censor* censor;
-	int reportThreshold;
+	Random64* rng;
+	std::map<Bridge*, int> numReportsPerBridgeRegionIndex[MAX_NUM_REGIONS];
+
+	int launchedProbes = 0;
 	long blockedBridgeDetectionCount = 0;
-	int bridgeStatDiffThreshold;
+
+	int reportThreshold;
+	int bridgeStatDiffThreshold;	
+	int numDaysHistoricalBridgeStatsAvg;
 
 	long bridgeStatsDailyDiff(Bridge* b, int regionIndex) {
-		int currUsage = b->getCurrentDailyUsageFromRegionIndex(regionIndex);
-		int prevUsage = b->getHistoricalDailyUsageFromRegionIndex(1, regionIndex);				
-		return prevUsage - currUsage;
+		int currUsageMultipleOf8 = b->getCurrentDailyUsageFromRegionIndex(regionIndex);
+		int prevUsageMultipleOf8 = b->getHistoricalDailyUsageFromRegionIndex(1, regionIndex);				
+		return prevUsageMultipleOf8 - currUsageMultipleOf8;
+	}
+
+	long bridgeStatsHistoricalAvgDiff(Bridge* b, int regionIndex) {
+		int totalHistoricalUsage = 0;
+		for (int i = 1; i <= numDaysHistoricalBridgeStatsAvg; i++) {
+			totalHistoricalUsage += b->getHistoricalDailyUsageFromRegionIndex(i, regionIndex);
+		}
+		int historicalAverage = ceil(totalHistoricalUsage / (numDaysHistoricalBridgeStatsAvg * 1.0));
+		int prevUsageMultipleOf8 = (historicalAverage + 7) & (-8);
+
+		int currUsageMultipleOf8 = b->getCurrentDailyUsageFromRegionIndex(regionIndex);
+
+		return prevUsageMultipleOf8 - currUsageMultipleOf8;
 	}
 
 public:
 	std::map<int, Probe*> probesPerRegionIndex;
 	// std::vector<ReportPair*> unresolvedReportPairs;
-	ReportPairStackNode* unresolvedReportPairs;
-	std::map<ReportPair*, int> numReportsPerBridgeRegion;	
+	// ReportPairStackNode* unresolvedReportPairs;
+	// std::map<ReportPair*, int> numReportsPerBridgeRegion;	
 	std::vector<Bridge*> blockedBridges;
 
+	//TODO fix erasing from these vectors
+	//These 2 vectors are always updated togther, which might suggest that we should have
+	// a list of structs/pairs instead however this complicates getting the list of blocked bridges 
+	// without iterating the regions so instead we will always update these 2 vectors together
+	// this is a dumb way to do this but it suffices for now
+	// std::vector<Bridge*> suspectedBlockedBridges;	
+	// std::vector<int> suspectedBlockedBridgesRegionIndexes;
 
-	Detector(BridgeAuthority* _bridgeAuth, Censor* _censor, int _reportThreshold, int _bridgeStatDiffThreshold) {		
+	Detector(BridgeAuthority* _bridgeAuth, int _reportThreshold, int _bridgeStatDiffThreshold, int _numDaysHistoricalBridgeStatsAvg, Random64* _rng) {
+		rng = _rng;
+		numDaysHistoricalBridgeStatsAvg = _numDaysHistoricalBridgeStatsAvg;
 		bridgeAuth = _bridgeAuth;
-		censor = _censor;
 		reportThreshold = _reportThreshold;
 		bridgeStatDiffThreshold = _bridgeStatDiffThreshold;
 		for (int i = 0; i < regionList.size(); i++) {
-			probesPerRegionIndex[i] = new Probe(i, censor);
+			probesPerRegionIndex[i] = new Probe(i);
 		}
-		unresolvedReportPairs = nullptr;
+		// unresolvedReportPairs = nullptr;		
 	}
 
-	bool probeBridgeFromRegionIndex(Bridge* b, int regionIndex) {
-		return !probesPerRegionIndex[regionIndex]->probeBridge(b);
+	bool didProbeFailToAccessBridgeFromRegionIndex(Bridge* b, int regionIndex) {
+		int retriesPerProbe = 3;
+		bool probeReachedBridge = false;
+		for (int i = 0; i < retriesPerProbe; i++) {
+			probeReachedBridge = probesPerRegionIndex[regionIndex]->probeBridge(b);
+			if (probeReachedBridge) {
+				break;
+			}
+		}
+		return !probeReachedBridge;
 	}
 
 	// Generic update function to perform tasks per time interval of main
@@ -89,58 +128,94 @@ public:
 	void update() {
 		int numNewBlocks = 0;
 
-		ReportPairStackNode* top = unresolvedReportPairs;
-		while (top) {
-			ReportPair* rp = top->rp;
-			if (find(blockedBridges.begin(), blockedBridges.end(), rp->bridge) == blockedBridges.end()) {		
-				if (numReportsPerBridgeRegion[rp] > reportThreshold) {
-					//check bridge stats
-					if (bridgeStatsDailyDiff(rp->bridge, rp->regionIndex) >= bridgeStatDiffThreshold) {
-						//launch probe
-						if (probeBridgeFromRegionIndex(rp->bridge, rp->regionIndex)) {
-							blockedBridges.push_back(rp->bridge);
-							numNewBlocks++;
-							bridgeAuth->migrateAllUsersOffBridge(rp->bridge);
-						}
-					}
+		double reportWeight = 0.4;
+		double bridgeStatsDiffWeight = 0.6;
+		double minConfidenceToProbe = 0.8;
+		int bridgeUsageThreshold = 32;
+		std::map<Bridge*, UserStackNode*>::iterator it;
+		std::vector<Bridge*> suspectedBlockedBridges;	
+		std::vector<int> suspectedBlockedBridgesRegionIndexes;
+
+		for (it = bridgeAuth->bridgeUsersMap.begin(); it != bridgeAuth->bridgeUsersMap.end(); it++) {						
+			Bridge* b = it->first;
+			if (std::find(suspectedBlockedBridges.begin(), suspectedBlockedBridges.end(), b) != suspectedBlockedBridges.end()) {
+				continue;
+			}
+
+			for (int i = 0; i < censorRegionIndexList.size(); i++) {
+				double blockedConfidence = 0;
+				double reportWeight = 0.2;
+								
+				int numReportsFromRegion = numReportsPerBridgeRegionIndex[i].find(b) == numReportsPerBridgeRegionIndex[i].end() 
+				  ? 0 : numReportsPerBridgeRegionIndex[i][b];
+				
+				double reportConfidence = numReportsFromRegion >= reportThreshold ? reportThreshold : numReportsFromRegion;
+				reportConfidence = reportWeight * (reportConfidence / reportThreshold);
+				
+				int bridgeStatsDiffFromAvg = bridgeStatsHistoricalAvgDiff(b, i);	
+				double bStatsConfidence =  bridgeStatsDiffWeight * (bridgeStatsDiffFromAvg / bridgeStatDiffThreshold);
+
+				int currentBridgeStats = b->getCurrentDailyUsageFromRegionIndex(i);
+				if (currentBridgeStats < bridgeUsageThreshold) {
+					bStatsConfidence = 1 * bridgeStatsDiffWeight;
 				}
-			}	
-			top = top->next;
+
+				blockedConfidence = reportConfidence + bStatsConfidence;
+
+				if (blockedConfidence >= minConfidenceToProbe) {
+					suspectedBlockedBridges.push_back(b);
+					suspectedBlockedBridgesRegionIndexes.push_back(i);
+					// if (didProbeFailToAccessBridgeFromRegionIndex(b, i)) {
+					// 	blockedBridges.push_back(b);
+					// 	numNewBlocks++;
+					// 	launchedProbes++;						
+					// 	break;
+					// }
+				}
+			}
 		}
 
-		// for (int i = 0; i < unresolvedReportPairs.size(); i++) {
-		// 	ReportPair* rp = unresolvedReportPairs[i];	
-		// 	if (std::find(blockedBridges.begin(), blockedBridges.end(), rp->bridge) == blockedBridges.end()) {		
-		// 		if (numReportsPerBridgeRegion[rp] > reportThreshold) {
-		// 			//check bridge stats
-		// 			if (bridgeStatsDailyDiff(rp->bridge, rp->regionIndex) >= bridgeStatDiffThreshold) {
-		// 				//launch probe
-		// 				if (probeBridgeFromRegionIndex(rp->bridge, rp->regionIndex)) {
-		// 					blockedBridges.push_back(rp->bridge);
-		// 					numNewBlocks++;
-		// 					bridgeAuth->migrateAllUsersOffBridge(rp->bridge);
-		// 				}
-		// 			}
-		// 		}
-		// 	}			
-		// }
+		double probeChancePercent = 90;		
+		// printf("%ld\n", suspectedBlockedBridges.size());
+		for (int i = 0; i < suspectedBlockedBridges.size(); i++) {
+			double r = rng->next(100000000) / 1000000.0;	
+			if (r < probeChancePercent) {				
+				if (didProbeFailToAccessBridgeFromRegionIndex(suspectedBlockedBridges[i], suspectedBlockedBridgesRegionIndexes[i])) {
+					blockedBridges.push_back(suspectedBlockedBridges[i]);
+					numNewBlocks++;
+					launchedProbes++;										
+				}
+			}	
+		}
+ 
+		for (int i = 0; i < blockedBridges.size(); i++) {			
+			// std::vector<Bridge*>::iterator it = std::find(suspectedBlockedBridges.begin(), suspectedBlockedBridges.end(), blockedBridges[i]);
+			// int index = it - suspectedBlockedBridges.begin();
+			// suspectedBlockedBridges.erase(it);
+			// suspectedBlockedBridgesRegionIndexes.erase(suspectedBlockedBridgesRegionIndexes.begin() + index);
+			bridgeAuth->migrateAllUsersOffBridge(blockedBridges[i]);			
+		}
+
 		blockedBridgeDetectionCount += numNewBlocks;
-		// blockedBridgeDetectionCount += blockedBridges.size();
-		// blockedBridges.clear();
-		// unresolvedReportPairs.clear();
-		clearUnresolvedReportPairs();
 	}
 
 	void reportBridgeFromRegionIndex(Bridge* bridge, int regionIndex) {
-		ReportPair* rp = new ReportPair(bridge, regionIndex);
-		// unresolvedReportPairs.push_back(rp);
-		unresolvedReportPairs = new ReportPairStackNode(unresolvedReportPairs, rp);		
-		
-		if (numReportsPerBridgeRegion.find(rp) != numReportsPerBridgeRegion.end()) {
-			numReportsPerBridgeRegion[rp]++;
+		// ReportPair* rp = new ReportPair(bridge, regionIndex);		
+		// unresolvedReportPairs = new ReportPairStackNode(unresolvedReportPairs, rp);				
+		// if (numReportsPerBridgeRegion.find(rp) != numReportsPerBridgeRegion.end()) {
+		// 	numReportsPerBridgeRegion[rp]++;
+		// }
+		// else {
+		// 	numReportsPerBridgeRegion[rp] = 1;
+		// }
+
+
+		std::map<Bridge*, int>* map = &numReportsPerBridgeRegionIndex[regionIndex];
+		if (map->find(bridge) != map->end()) {
+			(*map)[bridge]++;
 		}
 		else {
-			numReportsPerBridgeRegion[rp] = 1;
+			(*map)[bridge] = 1;
 		}
 	}
 
@@ -148,14 +223,14 @@ public:
 		return blockedBridgeDetectionCount;
 	}
 
-	void clearUnresolvedReportPairs() {
-		ReportPairStackNode* top = unresolvedReportPairs;
-		while (top) {
-			delete top->rp;
-			ReportPairStackNode* old = top;
-			top = top->next;
-			delete old;
-		} 
-		unresolvedReportPairs = nullptr;
-	}
+	// void clearUnresolvedReportPairs() {
+	// 	ReportPairStackNode* top = unresolvedReportPairs;
+	// 	while (top) {
+	// 		delete top->rp;
+	// 		ReportPairStackNode* old = top;
+	// 		top = top->next;
+	// 		delete old;
+	// 	} 
+	// 	unresolvedReportPairs = nullptr;
+	// }
 };
