@@ -112,7 +112,7 @@ public:
 	}
 
 	bool didProbeFailToAccessBridgeFromRegionIndex(Bridge* b, int regionIndex) {
-		int retriesPerProbe = 3;
+		int retriesPerProbe = 10;
 		bool probeReachedBridge = false;
 		for (int i = 0; i < retriesPerProbe; i++) {
 			probeReachedBridge = probesPerRegionIndex[regionIndex]->probeBridge(b);
@@ -130,60 +130,76 @@ public:
 
 		double reportWeight = 0.4;
 		double bridgeStatsDiffWeight = 0.6;
-		double minConfidenceToProbe = 0.8;
+		double minConfidenceToProbe = 0.9;
 		int bridgeUsageThreshold = 32;
 		std::map<Bridge*, UserStackNode*>::iterator it;
 		std::vector<Bridge*> suspectedBlockedBridges;	
 		std::vector<int> suspectedBlockedBridgesRegionIndexes;
 
+		// printf("%ld\n", bridgeAuth->bridgeUsersMap.size());
 		for (it = bridgeAuth->bridgeUsersMap.begin(); it != bridgeAuth->bridgeUsersMap.end(); it++) {						
 			Bridge* b = it->first;
+			if (std::find(blockedBridges.begin(), blockedBridges.end(), b) != blockedBridges.end()) {
+				continue;
+			}
+
 			if (std::find(suspectedBlockedBridges.begin(), suspectedBlockedBridges.end(), b) != suspectedBlockedBridges.end()) {
 				continue;
 			}
 
 			for (int i = 0; i < censorRegionIndexList.size(); i++) {
+				int censoredRegionIndex = censorRegionIndexList[i];
 				double blockedConfidence = 0;
 				double reportWeight = 0.2;
 								
-				int numReportsFromRegion = numReportsPerBridgeRegionIndex[i].find(b) == numReportsPerBridgeRegionIndex[i].end() 
-				  ? 0 : numReportsPerBridgeRegionIndex[i][b];
+				int numReportsFromRegion = numReportsPerBridgeRegionIndex[censoredRegionIndex].find(b) == numReportsPerBridgeRegionIndex[censoredRegionIndex].end() 
+				  ? 0 : numReportsPerBridgeRegionIndex[censoredRegionIndex][b];
 				
 				double reportConfidence = numReportsFromRegion >= reportThreshold ? reportThreshold : numReportsFromRegion;
 				reportConfidence = reportWeight * (reportConfidence / reportThreshold);
 				
-				int bridgeStatsDiffFromAvg = bridgeStatsHistoricalAvgDiff(b, i);	
+				int bridgeStatsDiffFromAvg = bridgeStatsHistoricalAvgDiff(b, censoredRegionIndex);	
 				double bStatsConfidence =  bridgeStatsDiffWeight * (bridgeStatsDiffFromAvg / bridgeStatDiffThreshold);
 
-				int currentBridgeStats = b->getCurrentDailyUsageFromRegionIndex(i);
+				int currentBridgeStats = b->getCurrentDailyUsageFromRegionIndex(censoredRegionIndex);
 				if (currentBridgeStats < bridgeUsageThreshold) {
 					bStatsConfidence = 1 * bridgeStatsDiffWeight;
 				}
 
 				blockedConfidence = reportConfidence + bStatsConfidence;
+				// blockedConfidence = numReportsFromRegion >= reportThreshold && (currentBridgeStats < bridgeUsageThreshold || bridgeStatsDiffFromAvg >= bridgeStatDiffThreshold);
 
 				if (blockedConfidence >= minConfidenceToProbe) {
 					suspectedBlockedBridges.push_back(b);
-					suspectedBlockedBridgesRegionIndexes.push_back(i);
-					// if (didProbeFailToAccessBridgeFromRegionIndex(b, i)) {
+					suspectedBlockedBridgesRegionIndexes.push_back(censoredRegionIndex);
+					// if (didProbeFailToAccessBridgeFromRegionIndex(b, censoredRegionIndex)) {
 					// 	blockedBridges.push_back(b);
 					// 	numNewBlocks++;
 					// 	launchedProbes++;						
 					// 	break;
 					// }
+					break;
+				}
+
+				double r = rng->next(100000000) / 1000000.0;	
+				double randomProbeChancePercent = 5;
+				if (r < randomProbeChancePercent) {
+					suspectedBlockedBridges.push_back(b);
+					suspectedBlockedBridgesRegionIndexes.push_back(censoredRegionIndex);
 				}
 			}
 		}
 
 		double probeChancePercent = 90;		
+		// double probeChancePercent = 101;		
 		// printf("%ld\n", suspectedBlockedBridges.size());
 		for (int i = 0; i < suspectedBlockedBridges.size(); i++) {
 			double r = rng->next(100000000) / 1000000.0;	
 			if (r < probeChancePercent) {				
+				launchedProbes++;										
 				if (didProbeFailToAccessBridgeFromRegionIndex(suspectedBlockedBridges[i], suspectedBlockedBridgesRegionIndexes[i])) {
 					blockedBridges.push_back(suspectedBlockedBridges[i]);
 					numNewBlocks++;
-					launchedProbes++;										
 				}
 			}	
 		}
@@ -197,6 +213,9 @@ public:
 		}
 
 		blockedBridgeDetectionCount += numNewBlocks;
+#ifdef DEBUG2
+		printf("Num blocked bridges = %ld\n", blockedBridgeDetectionCount);		
+#endif
 	}
 
 	void reportBridgeFromRegionIndex(Bridge* bridge, int regionIndex) {

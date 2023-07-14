@@ -32,13 +32,14 @@ private:
 	double geoIPErrorChance;
 	double messageDropChance;
 	Random64* rng;
+	int minBridgeDBSize = 1;
 
 	//Map users to the bridges that they currently known about and can access	
 	std::map<User*, Bridge**> userBridgeMap;	
 	std::map<User*, int> userNumKnownBridgeMap;	
 	
-	//list of all (unblocked) open entry bridges
-	//we could seperately have invite only if we want to model that
+	//list of all bridges
+	//we could seperately have invite only / open entry bridges if we want to model that
 	std::vector<Bridge*> bridgeDB;	
 
 	void expandBridgeDB(int numNewBridges) {
@@ -46,6 +47,7 @@ private:
 			Bridge* b = new Bridge(geoIPErrorChance, messageDropChance, rng);
 			bridgeDB.push_back(b);
 		}
+		numAddedBridges++;
 	}
 
 	void discardBridge(Bridge* b) {
@@ -92,11 +94,15 @@ public:
 	//Map bridges to the users that currently have access to them	
 	std::map<Bridge*, UserStackNode*> bridgeUsersMap;
 
-	BridgeAuthority(int _initBridgeCount, double _geoIPErrorChance, double _messageDropChance, Random64* rng) {
+	int numAddedBridges = 0;
+
+	BridgeAuthority(int _initBridgeCount, double _geoIPErrorChance, double _messageDropChance, int _minBridgeDBSize, Random64* rng) {
+		minBridgeDBSize = _minBridgeDBSize;
 		messageDropChance = _messageDropChance;
 		geoIPErrorChance = _geoIPErrorChance;
 		bridgeDB.reserve(_initBridgeCount);
 		expandBridgeDB(_initBridgeCount);		
+		numAddedBridges = 0;
 	}
 
 	int requestNewBridge(User* user, Bridge** userBridges) {
@@ -132,8 +138,14 @@ public:
 		}
 
 		discardBridge (b);
-		if (bridgeDB.size() <= MIN_BRIDGE_DB_SIZE) {
-			expandBridgeDB(MIN_BRIDGE_DB_SIZE * 2);
+		if (bridgeDB.size() <= minBridgeDBSize) {
+			expandBridgeDB(minBridgeDBSize);
 		}			
+	}
+
+	void update() {
+#ifdef DEBUG1
+		printf("Total bridge count = %ld\n", bridgeDB.size());
+#endif
 	}
 };

@@ -5,13 +5,18 @@
 #include <fstream>
 #include <map>
 #include <new>
+#include <time.h>
+
+// #define DEBUG2
+
+
 #include "bridge.h"
 #include "bridgeAuthority.h"
 #include "detector.h"
 #include "user.h"
 #include "censor.h"
 #include "xoshiro_srand.h"
-#include <time.h>
+
 
 __thread int tid;
 
@@ -31,6 +36,7 @@ struct simGlobals {
 
 	//bridge related
 	BridgeAuthority* bridgeAuth;
+	int minBridgeDBSize;
 	int initBridgeCount;
 	double geoIPErrorChance;
 	double messageDropChance;
@@ -162,13 +168,16 @@ void parseConfigFile(std::string &configFileRelativePath) {
 			exit(-1);
 		}
 
+		getline(configFile,line);
+		globals.minBridgeDBSize = std::stoi(line.substr(line.find("=")+1, line.length()));		
+
 		configFile.close();
 	}
 }
 
 void init() {		
 	globals.regularUsers = (User*)malloc(sizeof(User) * globals.userCount);	
-	globals.bridgeAuth = new BridgeAuthority(globals.initBridgeCount, globals.geoIPErrorChance, globals.messageDropChance, &globals.rng);	
+	globals.bridgeAuth = new BridgeAuthority(globals.initBridgeCount, globals.geoIPErrorChance, globals.messageDropChance, globals.minBridgeDBSize, &globals.rng);	
 
 	for (int i = 0; i < censorRegionIndexList.size(); i++) {
 		int censorRegionIndex = censorRegionIndexList[i];
@@ -230,18 +239,23 @@ void sequentialSim() {
 			globals.bridgeAuth->publishDailyBridgeStats();
 		}
 
-		//users connect to some number of bridges
+		//currently bridge auth update is only used for debugging
+		globals.bridgeAuth->update();
+
+		//users connect to some number of bridges		
 		for (int i = 0; i < globals.userCount; i++) {
-			globals.regularUsers[i].update();
+			globals.regularUsers[i].update();			
 		}
 
 		//censor has a chance to block bridge
 		for (int i = 0; i < censors.size(); i++) {
 			censors[i]->update();
+			printf("censored region accesses %d\n", censors[i]->numBridgeAccessesFromCensoredRegion);
 		}
 
 		//detector does any independant work with bridge stats
 		globals.blockDetector->update();
+
 		
 		updateCount++;
 		if (updateCount % 1000 == 0) {
@@ -263,6 +277,20 @@ void printOutputs() {
 	// 	printf("%ld, ", globals.regularUsers[i].numFailedBridgeAccesses);
 	// }
 	// printf("\n");
+
+	printf("Total bridge added after initial bridge setup = %d\n", globals.bridgeAuth->numAddedBridges);
+
+	uint64_t totalBridgeAccesses = 0;	
+	for (int i = 0; i < globals.userCount; i++) {
+		totalBridgeAccesses += globals.regularUsers[i].numBridgeAccesses;
+	}
+	printf("Total bridge accesses from all users/regions = %ld\n", totalBridgeAccesses);
+
+	uint64_t totalBridgeAccessesFromCensoredRegions = 0;
+	for (int i = 0; i < censors.size(); i++) {
+		totalBridgeAccessesFromCensoredRegions += censors[i]->numBridgeAccessesFromCensoredRegion;
+	}	
+	printf("Total bridge accesses from censored regions = %ld\n", totalBridgeAccessesFromCensoredRegions);
 
 	long totalCensorBlocks = 0;
 	for (int i = 0; i < censors.size(); i++) {

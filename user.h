@@ -27,6 +27,7 @@ public:
 	int regionIndex;
 	uint64_t numReports = 0;
 	uint64_t numFailedBridgeAccesses = 0;
+	uint64_t numBridgeAccesses = 0;
 
 
 	User(){
@@ -83,6 +84,8 @@ public:
 			}
 			numFailedBridgeAccesses++;
 		}
+		
+		numBridgeAccesses++;
 	}
 
 	// Generic update function to perform tasks per time interval of main
