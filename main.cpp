@@ -175,19 +175,25 @@ void parseConfigFile(std::string &configFileRelativePath) {
 
 		getline(configFile,line);
 		globals.minBridgeDBSize = std::stoi(line.substr(line.find("=")+1, line.length()));		
-		getline(configFile,line);
-		globals.probeChancePercent = std::stod(line.substr(line.find("=")+1, line.length()));
+		
 		getline(configFile,line);
 		globals.reportWeight = std::stod(line.substr(line.find("=")+1, line.length()));
+		
 		getline(configFile,line);
 		globals.bridgeStatsDiffWeight = std::stod(line.substr(line.find("=")+1, line.length()));
+		
 		getline(configFile,line);
 		globals.minConfidenceToProbe = std::stod(line.substr(line.find("=")+1, line.length()));
+		
 		getline(configFile,line);
 		globals.bridgeUsageThreshold = std::stoi(line.substr(line.find("=")+1, line.length()));
+				
+		getline(configFile,line);
+		globals.probeChancePercent = std::stod(line.substr(line.find("=")+1, line.length()));
+
 		getline(configFile,line);
 		globals.numRetriesPerProbe = std::stoi(line.substr(line.find("=")+1, line.length()));
-
+		
 		configFile.close();
 	}
 }
