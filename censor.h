@@ -3,7 +3,10 @@
 #include "bridge.h"
 #include "xoshiro_srand.h"
 #include <vector>
-// #include <set>
+
+#ifdef DEBUG_SANITY		
+	#include <set>
+#endif
 
 class Censor {
 	Random64* rng;
@@ -33,20 +36,27 @@ public:
 		}
 	}
 
-	void blockBridge(Bridge* b) {
+	void blockBridge(Bridge* b) {		
 		if (b->blockFromRegion(regionIndex)) {
+#ifdef DEBUG_SANITY
+			if (std::find(knownBridges.begin(), knownBridges.end(), b) != knownBridges.end()) {
+				printf("problem\n");
+			}
+#endif
 			knownBridges.push_back(b);
 			blockedBridgeCount++;
 		}
 	}
 
 	long getBlockedBridgeCount() {
-		// std::set<Bridge*> s;
-		// for (int i = 0; i < knownBridges.size(); i++) {
-		// 	s.insert(knownBridges[i]);
-		// } 
-		// printf("%ld\n", s.size());
-		// printf("\n");
+#ifdef DEBUG_SANITY		
+		std::set<Bridge*> s;
+		for (int i = 0; i < knownBridges.size(); i++) {
+			s.insert(knownBridges[i]);
+		} 
+		printf("%ld\n", s.size());
+		printf("\n");
+#endif
 		return blockedBridgeCount;
 	}
 

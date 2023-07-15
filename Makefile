@@ -3,7 +3,9 @@ LDFLAGS =
 GPP = g++
 
 FLAGS += -DMAX_THREADS_POW2=512
-FLAGS += -std=c++17 -gdwarf -lpthread
+# FLAGS += -std=c++17
+FLAGS += -std=c++2a 
+FLAGS += -gdwarf -lpthread
 
 no_optimize=0
 ifeq ($(no_optimize), 1)	

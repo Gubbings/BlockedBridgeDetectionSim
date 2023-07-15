@@ -33,7 +33,7 @@ public:
 		//bridge is blocked from the senders region
 		std::string region = regionList[trueRegionIndex];
 		if (!perRegionIndexBlockage.empty()) {
-			if (perRegionIndexBlockage.find(trueRegionIndex) != perRegionIndexBlockage.end()) {
+			if (perRegionIndexBlockage.contains(trueRegionIndex)) {
 				if (perRegionIndexBlockage[trueRegionIndex]) {
 					return -1;
 				}
@@ -53,7 +53,7 @@ public:
 		}
 		
 
-		if (currentDailyUsagePerRegionIndex.find(geoIPRegionIndex) != currentDailyUsagePerRegionIndex.end()) {
+		if (currentDailyUsagePerRegionIndex.contains(geoIPRegionIndex)) {
 			currentDailyUsagePerRegionIndex[geoIPRegionIndex]++;
 		}
 		else {
@@ -65,7 +65,7 @@ public:
 
 	bool blockFromRegion(int regionIndex) {
 		bool wasUnblocked = true;
-		if (perRegionIndexBlockage.find(regionIndex) != perRegionIndexBlockage.end()) {
+		if (perRegionIndexBlockage.contains(regionIndex)) {
 			wasUnblocked = !perRegionIndexBlockage[regionIndex];
 		}		
 		perRegionIndexBlockage[regionIndex] = true;		
@@ -88,10 +88,12 @@ public:
 	}
 
 	int getHistoricalDailyUsageFromRegionIndex(int daysPrior, int regionIndex) {
+#ifdef DEBUG_SANITY
 		if (daysPrior <= 0) {
 			printf("ERROR: attempting to get historical bridge stats with 0 or negative days in the past\n");	
 			exit(-1);
 		}
+#endif		
 		
 		int previousDateIndex = dailyUsagePerRegionIndexHistory.size() - daysPrior;		
 		if (previousDateIndex <= dailyUsagePerRegionIndexHistory.size() - 1) {

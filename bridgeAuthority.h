@@ -47,7 +47,7 @@ private:
 			Bridge* b = new Bridge(geoIPErrorChance, messageDropChance, rng);
 			bridgeDB.push_back(b);
 		}
-		numAddedBridges++;
+		numAddedBridges += numNewBridges;
 	}
 
 	void discardBridge(Bridge* b) {
@@ -76,7 +76,7 @@ private:
 			}
 		}
 
-#ifndef NODEBUG
+#ifdef DEBUG_SANITY
 		if (oldBridgeIndex >= numKnownBridges) {
 			printf("ERROR: attempting to migrate user off of bridge that the user does not know about\n");
 			exit(-1);
@@ -106,22 +106,23 @@ public:
 	}
 
 	int requestNewBridge(User* user, Bridge** userBridges) {
-		if (userBridgeMap.find(user) != userBridgeMap.end()) {			
+#ifdef DEBUG_SANITY
+		if (userBridgeMap.contains(user)) {			
 			printf("ERROR: user is requesting new bridge but the user already has bridges\n");
 			exit(-1);			
 		}
-		else {
-			int numBridgesToGive = rng->next(MAX_KNOWN_BRIDGES) + 1;
-			userNumKnownBridgeMap[user] = numBridgesToGive;
-			for (int i = 0; i < numBridgesToGive; i++) {
-				Bridge* b = getBridge();
-				userBridgeMap[user] = userBridges;
-				userBridgeMap[user][i] = b;								
-				UserStackNode* oldTop = bridgeUsersMap.find(b) == bridgeUsersMap.end() ? nullptr : bridgeUsersMap[b]; 
-				bridgeUsersMap[b] = new UserStackNode(oldTop, user);
-			}			
-			return numBridgesToGive;
-		}
+#endif		
+
+		int numBridgesToGive = rng->next(MAX_KNOWN_BRIDGES) + 1;
+		userNumKnownBridgeMap[user] = numBridgesToGive;
+		for (int i = 0; i < numBridgesToGive; i++) {
+			Bridge* b = getBridge();
+			userBridgeMap[user] = userBridges;
+			userBridgeMap[user][i] = b;								
+			UserStackNode* oldTop = bridgeUsersMap.contains(b) ? nullptr : bridgeUsersMap[b]; 
+			bridgeUsersMap[b] = new UserStackNode(oldTop, user);
+		}			
+		return numBridgesToGive;		
 	}
 
 	void publishDailyBridgeStats() {

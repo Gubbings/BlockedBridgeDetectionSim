@@ -227,24 +227,15 @@ public:
 		}
 
 		blockedBridgeDetectionCount += numNewBlocks;
+		blockedBridges.clear();
 #ifdef DEBUG2
 		printf("Num blocked bridges = %ld\n", blockedBridgeDetectionCount);		
 #endif
 	}
 
-	void reportBridgeFromRegionIndex(Bridge* bridge, int regionIndex) {
-		// ReportPair* rp = new ReportPair(bridge, regionIndex);		
-		// unresolvedReportPairs = new ReportPairStackNode(unresolvedReportPairs, rp);				
-		// if (numReportsPerBridgeRegion.find(rp) != numReportsPerBridgeRegion.end()) {
-		// 	numReportsPerBridgeRegion[rp]++;
-		// }
-		// else {
-		// 	numReportsPerBridgeRegion[rp] = 1;
-		// }
-
-
+	void reportBridgeFromRegionIndex(Bridge* bridge, int regionIndex) {		
 		std::map<Bridge*, int>* map = &numReportsPerBridgeRegionIndex[regionIndex];
-		if (map->find(bridge) != map->end()) {
+		if (map->contains(bridge)) {
 			(*map)[bridge]++;
 		}
 		else {

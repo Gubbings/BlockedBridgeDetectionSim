@@ -7,7 +7,9 @@
 #include <new>
 #include <time.h>
 
+// #define DEBUG1
 // #define DEBUG2
+// #define DEBUG_SANITY
 
 
 #include "bridge.h"
@@ -193,7 +195,7 @@ void parseConfigFile(std::string &configFileRelativePath) {
 
 		getline(configFile,line);
 		globals.numRetriesPerProbe = std::stoi(line.substr(line.find("=")+1, line.length()));
-		
+
 		configFile.close();
 	}
 }
