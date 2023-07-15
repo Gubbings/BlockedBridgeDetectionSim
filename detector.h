@@ -65,6 +65,14 @@ private:
 	int bridgeStatDiffThreshold;	
 	int numDaysHistoricalBridgeStatsAvg;
 
+	double probeChancePercent;		
+	double reportWeight;
+	double bridgeStatsDiffWeight;
+	double minConfidenceToProbe;
+	int bridgeUsageThreshold;
+	int retriesPerProbe;
+
+
 	long bridgeStatsDailyDiff(Bridge* b, int regionIndex) {
 		int currUsageMultipleOf8 = b->getCurrentDailyUsageFromRegionIndex(regionIndex);
 		int prevUsageMultipleOf8 = b->getHistoricalDailyUsageFromRegionIndex(1, regionIndex);				
@@ -99,12 +107,22 @@ public:
 	// std::vector<Bridge*> suspectedBlockedBridges;	
 	// std::vector<int> suspectedBlockedBridgesRegionIndexes;
 
-	Detector(BridgeAuthority* _bridgeAuth, int _reportThreshold, int _bridgeStatDiffThreshold, int _numDaysHistoricalBridgeStatsAvg, Random64* _rng) {
-		rng = _rng;
+	Detector(BridgeAuthority* _bridgeAuth, int _reportThreshold, int _bridgeStatDiffThreshold, int _numDaysHistoricalBridgeStatsAvg, 
+	  double _probeChancePercent, double _reportWeight, double _bridgeStatsDiffWeight, double _minConfidenceToProbe,
+	  int _bridgeUsageThreshold, int _retriesPerProbe, Random64* _rng) {
+		rng = _rng;		
 		numDaysHistoricalBridgeStatsAvg = _numDaysHistoricalBridgeStatsAvg;
 		bridgeAuth = _bridgeAuth;
 		reportThreshold = _reportThreshold;
 		bridgeStatDiffThreshold = _bridgeStatDiffThreshold;
+		retriesPerProbe = _retriesPerProbe;
+
+		probeChancePercent = _probeChancePercent;
+		reportWeight = _reportWeight;
+		bridgeStatsDiffWeight = _bridgeStatsDiffWeight;
+		minConfidenceToProbe = _minConfidenceToProbe;
+		bridgeUsageThreshold = _bridgeUsageThreshold;
+
 		for (int i = 0; i < regionList.size(); i++) {
 			probesPerRegionIndex[i] = new Probe(i);
 		}
@@ -112,7 +130,6 @@ public:
 	}
 
 	bool didProbeFailToAccessBridgeFromRegionIndex(Bridge* b, int regionIndex) {
-		int retriesPerProbe = 10;
 		bool probeReachedBridge = false;
 		for (int i = 0; i < retriesPerProbe; i++) {
 			probeReachedBridge = probesPerRegionIndex[regionIndex]->probeBridge(b);
@@ -128,10 +145,7 @@ public:
 	void update() {
 		int numNewBlocks = 0;
 
-		double reportWeight = 0.4;
-		double bridgeStatsDiffWeight = 0.6;
-		double minConfidenceToProbe = 0.9;
-		int bridgeUsageThreshold = 32;
+		
 		std::map<Bridge*, UserStackNode*>::iterator it;
 		std::vector<Bridge*> suspectedBlockedBridges;	
 		std::vector<int> suspectedBlockedBridgesRegionIndexes;

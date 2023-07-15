@@ -49,6 +49,12 @@ struct simGlobals {
 	int reportThreshold;
 	int bridgeStatDiffThreshold;
 	int numberOfDaysForAvgBridgeStats;
+	double probeChancePercent;		
+	double reportWeight;
+	double bridgeStatsDiffWeight;
+	double minConfidenceToProbe;
+	int bridgeUsageThreshold;
+	int numRetriesPerProbe;
 
 	volatile bool start;
 	volatile bool done;
@@ -104,7 +110,6 @@ void parseConfigFile(std::string &configFileRelativePath) {
 			globals.srandSeed = rand();					
 		}
 		globals.rng.setSeed(globals.srandSeed);
-		printf("srandSeed=%ld\n", globals.srandSeed);
 
 
 		//parse region list
@@ -170,6 +175,18 @@ void parseConfigFile(std::string &configFileRelativePath) {
 
 		getline(configFile,line);
 		globals.minBridgeDBSize = std::stoi(line.substr(line.find("=")+1, line.length()));		
+		getline(configFile,line);
+		globals.probeChancePercent = std::stod(line.substr(line.find("=")+1, line.length()));
+		getline(configFile,line);
+		globals.reportWeight = std::stod(line.substr(line.find("=")+1, line.length()));
+		getline(configFile,line);
+		globals.bridgeStatsDiffWeight = std::stod(line.substr(line.find("=")+1, line.length()));
+		getline(configFile,line);
+		globals.minConfidenceToProbe = std::stod(line.substr(line.find("=")+1, line.length()));
+		getline(configFile,line);
+		globals.bridgeUsageThreshold = std::stoi(line.substr(line.find("=")+1, line.length()));
+		getline(configFile,line);
+		globals.numRetriesPerProbe = std::stoi(line.substr(line.find("=")+1, line.length()));
 
 		configFile.close();
 	}
@@ -184,7 +201,7 @@ void init() {
 		censors.push_back(new Censor(censorRegionIndex, globals.blockChance, &globals.rng));
 	}
 	
-	globals.blockDetector = new Detector(globals.bridgeAuth, globals.reportThreshold, globals.bridgeStatDiffThreshold, globals.numberOfDaysForAvgBridgeStats, &globals.rng);
+	globals.blockDetector = new Detector(globals.bridgeAuth, globals.reportThreshold, globals.bridgeStatDiffThreshold, globals.numberOfDaysForAvgBridgeStats, globals.probeChancePercent, globals.reportWeight, globals.bridgeStatsDiffWeight, globals.minConfidenceToProbe, globals.bridgeUsageThreshold, globals.numRetriesPerProbe, &globals.rng);
 
 	// #pragma openmp parallel for
 	for (int i = 0; i < globals.userCount; i++) {
@@ -250,7 +267,9 @@ void sequentialSim() {
 		//censor has a chance to block bridge
 		for (int i = 0; i < censors.size(); i++) {
 			censors[i]->update();
+#ifdef DEBUG1
 			printf("censored region accesses %d\n", censors[i]->numBridgeAccessesFromCensoredRegion);
+#endif
 		}
 
 		//detector does any independant work with bridge stats
@@ -302,6 +321,68 @@ void printOutputs() {
 	printf("\n");
 }
 
+void printInputs() {
+	printf("------------------------------------------------------------\n");
+
+	printf("SIM RELATED INPUTS:\n");
+	printf("####################################\n");
+	printf("srandSeed=%ld\n", globals.srandSeed);
+	printf("regionList=");
+	for (int i = 0; i < regionList.size(); i++) {
+		printf("%s,", regionList[i].c_str());
+	}
+	printf("\n");
+	printf("censorRegionList=");
+	for (int i = 0; i < censorRegionIndexList.size(); i++) {
+		printf("%s,", regionList[censorRegionIndexList[i]].c_str());
+	}
+	printf("\n");
+	printf("percentUsersPerRegion=");
+	for (int i = 0; i < globals.percentUsersPerRegion.size(); i++) {
+		printf("%f,", globals.percentUsersPerRegion[i]);
+	}
+	printf("\n");
+	printf("geoIPErrorChance=%f\n", globals.geoIPErrorChance);
+	printf("iterationCount=%ld\n", globals.iterationCount);
+	printf("hoursPerUpdate=%d\n", globals.hoursPerUpdate);
+	printf("messageDropChance=%f\n", globals.messageDropChance);
+	printf("**********************************\n");
+
+	printf("USERS RELATED INPUTS:\n");
+	printf("####################################\n");
+	printf("userCount=%d\n", globals.userCount);
+	printf("reportChance=%f\n", globals.reportChance);
+	printf("maxSingleUserBridgeAccessPerTimeInterval=%d\n", globals.maxSingleUserBridgeAccessPerTimeInterval);
+	printf("minSingleUserBridgeAccessPerTimeInterval=%d\n", globals.minSingleUserBridgeAccessPerTimeInterval);
+	printf("**********************************\n");
+
+	printf("BRIDGE AUTHORITY RELATED INPUTS:\n");
+	printf("####################################\n");
+	printf("initBridgeCount=%d\n", globals.initBridgeCount);
+	printf("minBridgeDBSize=%d\n", globals.minBridgeDBSize);
+	printf("**********************************\n");
+
+	printf("CENSOR RELATED INPUTS:\n");
+	printf("####################################\n");
+	printf("blockChance=%f\n", globals.blockChance);
+	printf("**********************************\n");
+
+	printf("DETECTOR RELATED INPUTS:\n");
+	printf("####################################\n");
+	printf("numRetriesPerProbe=%d\n", globals.numRetriesPerProbe);
+	printf("numberOfDaysForAvgBridgeStats=%d\n", globals.numberOfDaysForAvgBridgeStats);
+	printf("reportThreshold=%d\n", globals.reportThreshold);
+	printf("bridgeStatDiffThreshold=%d\n", globals.bridgeStatDiffThreshold);		
+	printf("bridgeUsageThreshold=%d\n", globals.bridgeUsageThreshold);
+	printf("probeChancePercent=%f\n", globals.probeChancePercent);	
+	printf("reportWeight=%f\n", globals.reportWeight);
+	printf("bridgeStatsDiffWeight=%f\n", globals.bridgeStatsDiffWeight);
+	printf("minConfidenceToProbe=%f\n", globals.minConfidenceToProbe);			
+	printf("**********************************\n");
+	
+	printf("------------------------------------------------------------\n\n");
+}
+
 int main(int argc, char** argv) {
 	std::string configFileRelativePath;
 	bool useConfigFile = false;
@@ -313,57 +394,147 @@ int main(int argc, char** argv) {
 		printf("Example using config file:\n");
 		printf("./exeName -f configFileRelativePath\n\n");
 
-		printf("Example using command line args:\n");
-		printf("./exeName -bCount 10 -blkChance 0.1 -repChance 0.3\n");
+		// printf("Example using command line args:\n");
+		// printf("./exeName -bCount 10 -blkChance 0.1 -repChance 0.3\n");
 
 		exit(1);
 	}
 
 	//parse args
-	//TODO add these to cmd line arg parse
-	// 	iterationCount
-	// hoursPerUpdate
-	// totalUsers
-	// maxSingleUserBridgeAccessPerTimeInterval
-	// minSingleUserBridgeAccessPerTimeInterval
-	// geoIPErrorChance
-	// srandSee
-	// regionList
-	// censorRegion
-	// reportThreshold
-	// bridgeStatUsageDiffThreshold
+	globals.srandSeed = rand();
 	for (int i=1;i<argc;++i) {
 		if (strcmp(argv[i], "-f") == 0) {
             configFileRelativePath = argv[++i];
 			useConfigFile = true;
 			break;
         } 
-		else if (strcmp(argv[i], "-bCount") == 0) {
+		else if (strcmp(argv[i], "-i") == 0) {
+			globals.iterationCount = std::stoull(argv[++i]);	
+		}
+		else if (strcmp(argv[i], "-hpu") == 0) {
+			globals.hoursPerUpdate = std::stoull(argv[++i]);	
+		}
+		else if (strcmp(argv[i], "-u") == 0) {
+			globals.userCount = std::stoi(argv[++i]);	
+		}		
+		else if (strcmp(argv[i], "-b") == 0) {
 			globals.initBridgeCount = std::stoi(argv[++i]);
 		}
 		else if (strcmp(argv[i], "-blkChance") == 0) {
-			globals.blockChance = std::stoi(argv[++i]);
+			globals.blockChance = std::stod(argv[++i]);
 		}
-		else if (strcmp(argv[i], "-repChance") == 0) {
-			globals.reportChance = std::stoi(argv[++i]);
+		else if (strcmp(argv[i], "-rChance") == 0) {
+			globals.reportChance = std::stod(argv[++i]);
+		}
+		else if (strcmp(argv[i], "-maxBA") == 0) {
+			globals.maxSingleUserBridgeAccessPerTimeInterval = std::stoi(argv[++i]);
+		}
+		else if (strcmp(argv[i], "-minBA") == 0) {
+			globals.minSingleUserBridgeAccessPerTimeInterval = std::stoi(argv[++i]);
+		}
+		else if (strcmp(argv[i], "-ge") == 0) {
+			globals.geoIPErrorChance = std::stod(argv[++i]);
+		}
+		else if (strcmp(argv[i], "-seed") == 0) {
+			globals.srandSeed = std::stol(argv[++i]);
+		}
+		else if (strcmp(argv[i], "-regions") == 0) {			
+			std::string line (argv[++i]);
+			while (line.length() > 0) {		
+				int delimPos = line.find(",");				
+				if (delimPos != std::string::npos) {
+					std::string r = line.substr(0, delimPos);
+					regionList.push_back(r);
+					line = line.substr(delimPos+1, line.length());
+				}
+				else {
+					regionList.push_back(line);
+					break;
+				}
+			}
+		}
+		else if (strcmp(argv[i], "-censors") == 0) {			
+			std::string line (argv[++i]);
+			while (line.length() > 0) {		
+				int delimPos = line.find(",");				
+				int regionIndex;
+				if (delimPos != std::string::npos) {
+					std::string r = line.substr(0, delimPos);
+					regionIndex = find(regionList.begin(), regionList.end(), r) - regionList.begin();
+					censorRegionIndexList.push_back(regionIndex);
+					line = line.substr(delimPos+1, line.length());
+				}
+				else {
+					regionIndex = find(regionList.begin(), regionList.end(), line) - regionList.begin();
+					censorRegionIndexList.push_back(regionIndex);
+					break;
+				}
+			}
+		}
+		else if (strcmp(argv[i], "-rt") == 0) {
+			globals.reportThreshold = std::stoi(argv[++i]);
+		}
+		else if (strcmp(argv[i], "-bst") == 0) {
+			globals.bridgeStatDiffThreshold = std::stoi(argv[++i]);
+		}
+		else if (strcmp(argv[i], "-dropChance") == 0) {
+			globals.messageDropChance = std::stod(argv[++i]);
+		}
+		else if (strcmp(argv[i], "-bsAvgDays") == 0) {
+			globals.numberOfDaysForAvgBridgeStats = std::stoi(argv[++i]);
+		}
+		else if (strcmp(argv[i], "-upr") == 0) {			
+			std::string line (argv[++i]);
+			while (line.length() > 0) {		
+				int delimPos = line.find(",");				
+				if (delimPos != std::string::npos) {
+					double d = std::stod(line.substr(0, delimPos));
+					globals.percentUsersPerRegion.push_back(d);
+					line = line.substr(delimPos+1, line.length());
+					printf("%f,", d);
+				}
+				else {
+					globals.percentUsersPerRegion.push_back(std::stod(line));
+					printf("%f,", std::stod(line));
+					break;
+				}
+			}
+			printf("\n");
+		}
+		else if (strcmp(argv[i], "-minBDB") == 0) {
+			globals.minBridgeDBSize = std::stoi(argv[++i]);
+		}
+
+		else if (strcmp(argv[i], "-pChance") == 0) {
+			globals.probeChancePercent = std::stod(argv[++i]);
+		}
+		else if (strcmp(argv[i], "-rw") == 0) {
+			globals.reportWeight = std::stod(argv[++i]);
+		}
+		else if (strcmp(argv[i], "-bsdw") == 0) {
+			globals.bridgeStatsDiffWeight = std::stod(argv[++i]);
+		}
+		else if (strcmp(argv[i], "-mctp") == 0) {
+			globals.minConfidenceToProbe = std::stod(argv[++i]);
+		}
+		else if (strcmp(argv[i], "-but") == 0) {
+			globals.bridgeUsageThreshold = std::stoi(argv[++i]);
+		}
+		else if (strcmp(argv[i], "-rpp") == 0) {
+			globals.numRetriesPerProbe = std::stoi(argv[++i]);
 		}
 		else {
-            std::cout<<"bad argument "<<argv[i]<<std::endl;
+            std::cout<<"ERROR: bad argument "<<argv[i]<<std::endl;
             exit(1);
         }
-	}
+	}	
 
 	if (useConfigFile) {
 		parseConfigFile(configFileRelativePath);
 	}
 
-#ifndef NO_DEBUG
-	printf("Bridge Count = %d\n", globals.initBridgeCount);
-	printf("Block Chance = %f\n", globals.blockChance);
-	printf("Report Chance = %f\n", globals.reportChance);
-#endif
-
 	init();
+	printInputs();
 	clock_t time = clock();	
 	sequentialSim();
 	time = clock() - time;
