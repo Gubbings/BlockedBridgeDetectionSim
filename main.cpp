@@ -402,8 +402,8 @@ int main(int argc, char** argv) {
 		printf("Example using config file:\n");
 		printf("./exeName -f configFileRelativePath\n\n");
 
-		// printf("Example using command line args:\n");
-		// printf("./exeName -bCount 10 -blkChance 0.1 -repChance 0.3\n");
+		printf("Example using command line args:\n");
+		printf("./exeName -i 1000 -hpu 12 -u 10000 -b 3500 -blkChance 0.05 -rChance 50 -maxBA 100 -minBA 20 -ge 10 -seed  -regions ca,ru,cn,us -censors cn -rt 5 -bst 50 -dropChance 10 -bsAvgDays 7 -upr 10,10,70,10 -minBDB 1000 -pChance 90 -rw 0.4 -bsdw 0.9 -mctp 0.9 -but 32 -rpp 10\n\n");
 
 		exit(1);
 	}
@@ -539,6 +539,9 @@ int main(int argc, char** argv) {
 
 	if (useConfigFile) {
 		parseConfigFile(configFileRelativePath);
+	}
+	else {
+		globals.rng.setSeed(globals.srandSeed);
 	}
 
 	init();

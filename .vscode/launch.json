@@ -5,13 +5,58 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
-			"name": "Simluation Test",
+			"name": "Simluation Test from File",
 			"type": "cppdbg",
 			"request": "launch",			
 			"program": "${workspaceFolder}/bin/simulation.exe",			
 			"args": [
 				"-f", "config.txt", 				
 				// "-pin", "0-23,48-71,24-47,72-95"
+			],
+			"stopAtEntry": false,
+			"cwd": "${workspaceFolder}/bin/",
+			"environment": [								
+			],
+			"externalConsole": false,
+			"MIMode": "gdb",
+			"setupCommands": [
+				{
+					"description": "Enable pretty-printing for gdb",
+					"text": "-enable-pretty-printing",
+					"ignoreFailures": true
+				}
+			]
+		},
+		{
+			"name": "Simluation Test Cmd Args",
+			"type": "cppdbg",
+			"request": "launch",			
+			"program": "${workspaceFolder}/bin/simulation.exe",			
+			"args": [								
+				"-i", "1000", 
+				"-hpu", "12", 
+				"-u", "10000", 
+				"-b", "3500", 
+				"-blkChance", "0.05", 
+				"-rChance", "50", 
+				"-maxBA", "100", 
+				"-minBA", "20", 
+				"-ge", "10", 
+				// "-seed", "",
+				"-regions", "ca,ru,cn,us", 
+				"-censors", "cn", 
+				"-rt", "5", 
+				"-bst", "50", 
+				"-dropChance", "10", 
+				"-bsAvgDays", "7", 
+				"-upr", "10,10,70,10", 
+				"-minBDB", "1000", 
+				"-pChance", "90", 
+				"-rw", "0.4", 
+				"-bsdw", "0.6", 
+				"-mctp", "0.9", 
+				"-but", "32", 
+				"-rpp", "10"
 			],
 			"stopAtEntry": false,
 			"cwd": "${workspaceFolder}/bin/",

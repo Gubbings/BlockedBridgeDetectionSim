@@ -33,6 +33,7 @@ private:
 	double messageDropChance;
 	Random64* rng;
 	int minBridgeDBSize = 1;
+	int initBridgeCount;
 
 	//Map users to the bridges that they currently known about and can access	
 	std::map<User*, Bridge**> userBridgeMap;	
@@ -96,12 +97,14 @@ public:
 
 	int numAddedBridges = 0;
 
-	BridgeAuthority(int _initBridgeCount, double _geoIPErrorChance, double _messageDropChance, int _minBridgeDBSize, Random64* rng) {
-		minBridgeDBSize = _minBridgeDBSize;
-		messageDropChance = _messageDropChance;
+	BridgeAuthority(int _initBridgeCount, double _geoIPErrorChance, double _messageDropChance, int _minBridgeDBSize, Random64* _rng) {
+		initBridgeCount = _initBridgeCount;
+		rng = _rng;
 		geoIPErrorChance = _geoIPErrorChance;
-		bridgeDB.reserve(_initBridgeCount);
-		expandBridgeDB(_initBridgeCount);		
+		messageDropChance = _messageDropChance;		
+		minBridgeDBSize = _minBridgeDBSize;
+		bridgeDB.reserve(initBridgeCount);
+		expandBridgeDB(initBridgeCount);		
 		numAddedBridges = 0;
 	}
 
