@@ -58,8 +58,11 @@ private:
 	Random64* rng;
 	std::map<Bridge*, int> numReportsPerBridgeRegionIndex[MAX_NUM_REGIONS];
 
-	int launchedProbes = 0;
-	long blockedBridgeDetectionCount = 0;
+	uint64_t launchedProbes = 0;
+	uint64_t blockedBridgeDetectionCount = 0;
+	uint64_t bstatsDiffBelowThresholdCount = 0;
+	uint64_t bstatsUsageBelowThresholdCount = 0;
+	uint64_t totalSuspiciousBridges = 0;
 
 	int reportThreshold;
 	int bridgeStatDiffThreshold;	
@@ -174,11 +177,20 @@ public:
 				
 				int bridgeStatsDiffFromAvg = bridgeStatsHistoricalAvgDiff(b, censoredRegionIndex);	
 				double bStatsConfidence =  bridgeStatsDiffWeight * (bridgeStatsDiffFromAvg / bridgeStatDiffThreshold);
+				if (bridgeStatsDiffFromAvg >= bridgeStatDiffThreshold) {
+					bstatsDiffBelowThresholdCount++;
+				}
 
 				int currentBridgeStats = b->getCurrentDailyUsageFromRegionIndex(censoredRegionIndex);
 				if (currentBridgeStats < bridgeUsageThreshold) {
 					bStatsConfidence = 1 * bridgeStatsDiffWeight;
+					bstatsUsageBelowThresholdCount++;
 				}
+
+#ifdef DEBUG1				
+				printf("diff:  %d\n", bridgeStatsDiffFromAvg);
+				printf("daily: %d\n", currentBridgeStats);
+#endif				
 
 				blockedConfidence = reportConfidence + bStatsConfidence;
 				// blockedConfidence = numReportsFromRegion >= reportThreshold && (currentBridgeStats < bridgeUsageThreshold || bridgeStatsDiffFromAvg >= bridgeStatDiffThreshold);
@@ -217,7 +229,8 @@ public:
 				}
 			}	
 		}
- 
+		totalSuspiciousBridges += suspectedBlockedBridges.size();
+
 		for (int i = 0; i < blockedBridges.size(); i++) {			
 			// std::vector<Bridge*>::iterator it = std::find(suspectedBlockedBridges.begin(), suspectedBlockedBridges.end(), blockedBridges[i]);
 			// int index = it - suspectedBlockedBridges.begin();
@@ -243,9 +256,27 @@ public:
 		}
 	}
 
-	long getDetectedBlockagesCount() {
+	uint64_t getDetectedBlockagesCount() {
 		return blockedBridgeDetectionCount;
 	}
+
+	uint64_t getNumLaunchedProbes() {
+		return launchedProbes;
+	}
+
+	uint64_t getBstatsUsageBelowThresholdCount() {
+		return bstatsUsageBelowThresholdCount;
+	}
+
+	uint64_t getBstatsDiffBelowThresholdCount() {
+		return bstatsDiffBelowThresholdCount;
+	}
+
+
+	uint64_t getTotalSuspiciousBridgesCount() {
+		return totalSuspiciousBridges;
+	}
+
 
 	// void clearUnresolvedReportPairs() {
 	// 	ReportPairStackNode* top = unresolvedReportPairs;

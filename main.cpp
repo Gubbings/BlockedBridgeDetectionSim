@@ -294,30 +294,34 @@ void sequentialSim() {
 }
 
 void printOutputs() {
+	uint64_t totalReports = 0;
 	// printf("Reports per user:\n");
-	// for (int i = 0; i < globals.userCount; i++) {
-	// 	printf("%ld, ", globals.regularUsers[i].numReports);
-	// }
+	for (int i = 0; i < globals.userCount; i++) {
+		// printf("%ld, ", globals.regularUsers[i].numReports);
+		totalReports += globals.regularUsers[i].numReports;
+	}
 	// printf("\n");
+	printf("Total_user_reports=%ld\n", totalReports);
+
 	// printf("Failed bridge accesses per user:\n");
 	// for (int i = 0; i < globals.userCount; i++) {
 	// 	printf("%ld, ", globals.regularUsers[i].numFailedBridgeAccesses);
 	// }
 	// printf("\n");
 
-	printf("Total bridge added after initial bridge setup = %d\n", globals.bridgeAuth->numAddedBridges);
+	printf("Total_bridge_added_after_initial_bridge_setup=%d\n", globals.bridgeAuth->numAddedBridges);
 
 	uint64_t totalBridgeAccesses = 0;	
 	for (int i = 0; i < globals.userCount; i++) {
 		totalBridgeAccesses += globals.regularUsers[i].numBridgeAccesses;
 	}
-	printf("Total bridge accesses from all users/regions = %ld\n", totalBridgeAccesses);
+	printf("Total_bridge_accesses= %ld\n", totalBridgeAccesses);
 
 	uint64_t totalBridgeAccessesFromCensoredRegions = 0;
 	for (int i = 0; i < censors.size(); i++) {
 		totalBridgeAccessesFromCensoredRegions += censors[i]->numBridgeAccessesFromCensoredRegion;
 	}	
-	printf("Total bridge accesses from censored regions = %ld\n", totalBridgeAccessesFromCensoredRegions);
+	printf("Total_bridge_accesses_from_censored_regions=%ld\n", totalBridgeAccessesFromCensoredRegions);
 
 	long totalCensorBlocks = 0;
 	for (int i = 0; i < censors.size(); i++) {
@@ -325,6 +329,11 @@ void printOutputs() {
 	}
 	printf("total_bridges_blocked_by_censor=%ld\n", totalCensorBlocks);
 	printf("total_blocks_detected=%ld\n", globals.blockDetector->getDetectedBlockagesCount());
+	printf("total_suspicious_bridges=%ld\n", globals.blockDetector->getTotalSuspiciousBridgesCount());
+	printf("total_probes_launched=%ld\n", globals.blockDetector->getNumLaunchedProbes());
+	printf("total_times_bstats_daily_usage_dropped_below_threshold=%ld\n", globals.blockDetector->getBstatsDiffBelowThresholdCount());
+	printf("total_times_bstats_diff_dropped_below_threshold=%ld\n", globals.blockDetector->getBstatsUsageBelowThresholdCount());
+
 
 	printf("\n");
 }
