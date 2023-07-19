@@ -6,6 +6,9 @@
 #include <string>
 #include "xoshiro_srand.h"
 
+#define BLOCKED_ACCESS -1
+#define DROPPED_ACCESS -2
+
 extern std::vector<std::string> regionList;
 
 class Bridge {
@@ -35,7 +38,7 @@ public:
 		if (!perRegionIndexBlockage.empty()) {
 			if (perRegionIndexBlockage.contains(trueRegionIndex)) {
 				if (perRegionIndexBlockage[trueRegionIndex]) {
-					return -1;
+					return BLOCKED_ACCESS;
 				}
 			}
 		}
@@ -43,7 +46,7 @@ public:
 		//message looks like the bridge is blocked when it really is not
 		double r = rng->next(100000000) / 1000000.0;		
 		if (r < messageDropChance) {
-			return -1;
+			return DROPPED_ACCESS;
 		}
 
 		int geoIPRegionIndex = trueRegionIndex;

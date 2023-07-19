@@ -72,6 +72,7 @@ private:
 	double reportWeight;
 	double bridgeStatsDiffWeight;
 	double minConfidenceToProbe;
+	double nonSusProbeChancePercent;
 	int bridgeUsageThreshold;
 	int retriesPerProbe;
 
@@ -112,13 +113,14 @@ public:
 
 	Detector(BridgeAuthority* _bridgeAuth, int _reportThreshold, int _bridgeStatDiffThreshold, int _numDaysHistoricalBridgeStatsAvg, 
 	  double _probeChancePercent, double _reportWeight, double _bridgeStatsDiffWeight, double _minConfidenceToProbe,
-	  int _bridgeUsageThreshold, int _retriesPerProbe, Random64* _rng) {
+	  int _bridgeUsageThreshold, int _retriesPerProbe, double _nonSusProbeChancePercent, Random64* _rng) {
 		rng = _rng;		
 		numDaysHistoricalBridgeStatsAvg = _numDaysHistoricalBridgeStatsAvg;
 		bridgeAuth = _bridgeAuth;
 		reportThreshold = _reportThreshold;
 		bridgeStatDiffThreshold = _bridgeStatDiffThreshold;
 		retriesPerProbe = _retriesPerProbe;
+		nonSusProbeChancePercent = _nonSusProbeChancePercent;
 
 		probeChancePercent = _probeChancePercent;
 		reportWeight = _reportWeight;
@@ -147,7 +149,6 @@ public:
 	// update loop 
 	void update() {
 		int numNewBlocks = 0;
-
 		
 		std::map<Bridge*, UserStackNode*>::iterator it;
 		std::vector<Bridge*> suspectedBlockedBridges;	
@@ -198,18 +199,11 @@ public:
 				if (blockedConfidence >= minConfidenceToProbe) {
 					suspectedBlockedBridges.push_back(b);
 					suspectedBlockedBridgesRegionIndexes.push_back(censoredRegionIndex);
-					// if (didProbeFailToAccessBridgeFromRegionIndex(b, censoredRegionIndex)) {
-					// 	blockedBridges.push_back(b);
-					// 	numNewBlocks++;
-					// 	launchedProbes++;						
-					// 	break;
-					// }
 					break;
 				}
 
 				double r = rng->next(100000000) / 1000000.0;	
-				double randomProbeChancePercent = 5;
-				if (r < randomProbeChancePercent) {
+				if (r < nonSusProbeChancePercent) {
 					suspectedBlockedBridges.push_back(b);
 					suspectedBlockedBridgesRegionIndexes.push_back(censoredRegionIndex);
 				}
@@ -277,15 +271,62 @@ public:
 		return totalSuspiciousBridges;
 	}
 
+	int getSusBridgeCount() {
+		std::map<Bridge*, UserStackNode*>::iterator it;
+		std::vector<Bridge*> suspectedBlockedBridges;	
+		std::vector<int> suspectedBlockedBridgesRegionIndexes;
 
-	// void clearUnresolvedReportPairs() {
-	// 	ReportPairStackNode* top = unresolvedReportPairs;
-	// 	while (top) {
-	// 		delete top->rp;
-	// 		ReportPairStackNode* old = top;
-	// 		top = top->next;
-	// 		delete old;
-	// 	} 
-	// 	unresolvedReportPairs = nullptr;
-	// }
+		// printf("%ld\n", bridgeAuth->bridgeUsersMap.size());
+		for (it = bridgeAuth->bridgeUsersMap.begin(); it != bridgeAuth->bridgeUsersMap.end(); it++) {						
+			Bridge* b = it->first;
+			if (std::find(blockedBridges.begin(), blockedBridges.end(), b) != blockedBridges.end()) {
+				continue;
+			}
+
+			if (std::find(suspectedBlockedBridges.begin(), suspectedBlockedBridges.end(), b) != suspectedBlockedBridges.end()) {
+				continue;
+			}
+
+			for (int i = 0; i < censorRegionIndexList.size(); i++) {
+				int censoredRegionIndex = censorRegionIndexList[i];
+				double blockedConfidence = 0;
+				double reportWeight = 0.2;
+								
+				int numReportsFromRegion = numReportsPerBridgeRegionIndex[censoredRegionIndex].find(b) == numReportsPerBridgeRegionIndex[censoredRegionIndex].end() 
+				  ? 0 : numReportsPerBridgeRegionIndex[censoredRegionIndex][b];
+				
+				double reportConfidence = numReportsFromRegion >= reportThreshold ? reportThreshold : numReportsFromRegion;
+				reportConfidence = reportWeight * (reportConfidence / reportThreshold);
+				
+				int bridgeStatsDiffFromAvg = bridgeStatsHistoricalAvgDiff(b, censoredRegionIndex);	
+				double bStatsConfidence =  bridgeStatsDiffWeight * (bridgeStatsDiffFromAvg / bridgeStatDiffThreshold);
+				if (bridgeStatsDiffFromAvg >= bridgeStatDiffThreshold) {
+					bstatsDiffBelowThresholdCount++;
+				}
+
+				int currentBridgeStats = b->getCurrentDailyUsageFromRegionIndex(censoredRegionIndex);
+				if (currentBridgeStats < bridgeUsageThreshold) {
+					bStatsConfidence = 1 * bridgeStatsDiffWeight;
+					bstatsUsageBelowThresholdCount++;
+				}
+
+#ifdef DEBUG1				
+				printf("diff:  %d\n", bridgeStatsDiffFromAvg);
+				printf("daily: %d\n", currentBridgeStats);
+#endif				
+
+				blockedConfidence = reportConfidence + bStatsConfidence;
+				// blockedConfidence = numReportsFromRegion >= reportThreshold && (currentBridgeStats < bridgeUsageThreshold || bridgeStatsDiffFromAvg >= bridgeStatDiffThreshold);
+
+				if (blockedConfidence >= minConfidenceToProbe) {
+					suspectedBlockedBridges.push_back(b);
+					suspectedBlockedBridgesRegionIndexes.push_back(censoredRegionIndex);
+					break;
+				}
+			}
+		}
+
+
+		return suspectedBlockedBridges.size();
+	}
 };

@@ -18,7 +18,7 @@ public:
 		int response = b->messageFromRegion(regionIndex);
 
 		for (int i = 0; i < censors.size(); i++) {
-			censors[i]->bridgeAccessFromRegionIndex(regionIndex, b);
+			censors[i]->bridgeAccessFromRegionIndex(regionIndex, b, true);
 		}
 
 		return response > 0;		

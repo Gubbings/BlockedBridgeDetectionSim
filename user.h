@@ -18,6 +18,7 @@ private:
 	double reportChance;
 	Random64* rng;
 	int numKnownBridges = 0;
+	int currentBridgeIndex = 0;
 
 public:	
 	Bridge* knownBridges[MAX_KNOWN_BRIDGES];
@@ -27,7 +28,10 @@ public:
 	int regionIndex;
 	uint64_t numReports = 0;
 	uint64_t numFailedBridgeAccesses = 0;
+	uint64_t numBlockedBridgeAccesses = 0;
+	uint64_t numDroppedBridgeAccesses = 0;
 	uint64_t numBridgeAccesses = 0;
+	uint64_t numSuccessfulBridgeAccesses = 0;
 
 
 	User(){
@@ -66,9 +70,10 @@ public:
 		detector->reportBridgeFromRegionIndex(b, regionIndex);
 	}
 
-	void accessBridge() {
-		int randomKnownBridgeIndex = rng->next(numKnownBridges);
-		Bridge* b = knownBridges[randomKnownBridgeIndex];
+	bool accessBridge() {
+		numBridgeAccesses++;
+		// int randomKnownBridgeIndex = rng->next(numKnownBridges);
+		Bridge* b = knownBridges[currentBridgeIndex];
 
 		int response = b->messageFromRegion(regionIndex);
 		
@@ -83,9 +88,19 @@ public:
 				numReports++;
 			}
 			numFailedBridgeAccesses++;
+
+			if (response == BLOCKED_ACCESS) {
+ 				numBlockedBridgeAccesses++;
+			}
+			else if (response == DROPPED_ACCESS) {
+				numDroppedBridgeAccesses++;
+			}
+
+			return false;
 		}
 		
-		numBridgeAccesses++;
+		numSuccessfulBridgeAccesses++;
+		return true;
 	}
 
 	// Generic update function to perform tasks per time interval of main
@@ -96,8 +111,18 @@ public:
 		}
 
 		int bridgeAccesses = minAccesesPerUpdate + rng->next(maxAccessesPerUpdate);
+		// int maxFails = 5;
+		// int fails = 0;
 		for (int i = 0; i < bridgeAccesses; i++) {
-			accessBridge();
+			if (!accessBridge()) {
+				currentBridgeIndex = (currentBridgeIndex + 1) % numKnownBridges;
+			}
+			// if (!accessBridge()) {
+			// 	fails++;
+			// }
+			// if (fails >= maxFails) {
+			// 	detector->update();
+			// }
 		}
 	}
 	

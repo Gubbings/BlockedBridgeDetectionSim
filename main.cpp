@@ -55,6 +55,7 @@ struct simGlobals {
 	double reportWeight;
 	double bridgeStatsDiffWeight;
 	double minConfidenceToProbe;
+	double nonSusProbeChancePercent;
 	int bridgeUsageThreshold;
 	int numRetriesPerProbe;
 
@@ -196,6 +197,9 @@ void parseConfigFile(std::string &configFileRelativePath) {
 		getline(configFile,line);
 		globals.numRetriesPerProbe = std::stoi(line.substr(line.find("=")+1, line.length()));
 
+		getline(configFile,line);
+		globals.nonSusProbeChancePercent = std::stod(line.substr(line.find("=")+1, line.length()));
+
 		configFile.close();
 	}
 }
@@ -209,7 +213,7 @@ void init() {
 		censors.push_back(new Censor(censorRegionIndex, globals.blockChance, &globals.rng));
 	}
 	
-	globals.blockDetector = new Detector(globals.bridgeAuth, globals.reportThreshold, globals.bridgeStatDiffThreshold, globals.numberOfDaysForAvgBridgeStats, globals.probeChancePercent, globals.reportWeight, globals.bridgeStatsDiffWeight, globals.minConfidenceToProbe, globals.bridgeUsageThreshold, globals.numRetriesPerProbe, &globals.rng);
+	globals.blockDetector = new Detector(globals.bridgeAuth, globals.reportThreshold, globals.bridgeStatDiffThreshold, globals.numberOfDaysForAvgBridgeStats, globals.probeChancePercent, globals.reportWeight, globals.bridgeStatsDiffWeight, globals.minConfidenceToProbe, globals.bridgeUsageThreshold, globals.numRetriesPerProbe, globals.nonSusProbeChancePercent, &globals.rng);
 
 	// #pragma openmp parallel for
 	for (int i = 0; i < globals.userCount; i++) {
@@ -267,10 +271,25 @@ void sequentialSim() {
 		//currently bridge auth update is only used for debugging
 		globals.bridgeAuth->update();
 
+#ifdef DEBUG2
+		uint64_t numBlockedAccesses = 0;
+		uint64_t numSuccessAccesses = 0;
+#endif
+
 		//users connect to some number of bridges		
 		for (int i = 0; i < globals.userCount; i++) {
-			globals.regularUsers[i].update();			
+			globals.regularUsers[i].update();		
+#ifdef DEBUG2			
+			numBlockedAccesses += globals.regularUsers[i].numBlockedBridgeAccesses;	
+			numSuccessAccesses += globals.regularUsers[i].numSuccessfulBridgeAccesses;	
+#endif			
 		}
+
+#ifdef DEBUG2
+		printf("num_blocked=%ld\n", numBlockedAccesses);
+		printf("num_success=%ld\n", numSuccessAccesses);
+#endif
+
 
 		//censor has a chance to block bridge
 		for (int i = 0; i < censors.size(); i++) {
@@ -280,9 +299,15 @@ void sequentialSim() {
 #endif
 		}
 
-		//detector does any independant work with bridge stats
+		//detector does any independant work with bridge stats, user reports and probes
 		globals.blockDetector->update();
 
+#ifdef DEBUG2
+		printf("num_detected=%ld\n", globals.blockDetector->getDetectedBlockagesCount());
+		for (int i = 0; i < censors.size(); i++) {
+			printf("num__blocked=%ld\n", censors[i]->getBlockedBridgeCount());
+		}
+#endif		
 		
 		updateCount++;
 		if (updateCount % 1000 == 0) {
@@ -291,9 +316,14 @@ void sequentialSim() {
 			}
 		}
 	}
+
+	// printf("num_sus_bridges_remaining=%d\n", globals.blockDetector->getSusBridgeCount());
 }
 
 void printOutputs() {
+
+	printf("Total_bridge_added_after_initial_bridge_setup=%d\n", globals.bridgeAuth->numAddedBridges);
+
 	uint64_t totalReports = 0;
 	// printf("Reports per user:\n");
 	for (int i = 0; i < globals.userCount; i++) {
@@ -303,13 +333,20 @@ void printOutputs() {
 	// printf("\n");
 	printf("Total_user_reports=%ld\n", totalReports);
 
-	// printf("Failed bridge accesses per user:\n");
-	// for (int i = 0; i < globals.userCount; i++) {
-	// 	printf("%ld, ", globals.regularUsers[i].numFailedBridgeAccesses);
-	// }
+	// printf("Failed bridge accesses per user:\n");	
+	uint64_t totalFailedBridgeAccesses = 0;
+	uint64_t totalBlockedBridgeAccesses = 0;
+	uint64_t totalDroppedBridgeAccesses = 0;
+	for (int i = 0; i < globals.userCount; i++) {
+		// printf("%ld, ", globals.regularUsers[i].numFailedBridgeAccesses);
+		totalFailedBridgeAccesses += globals.regularUsers[i].numFailedBridgeAccesses;
+		totalBlockedBridgeAccesses += globals.regularUsers[i].numBlockedBridgeAccesses;
+		totalDroppedBridgeAccesses += globals.regularUsers[i].numDroppedBridgeAccesses;
+	}
 	// printf("\n");
-
-	printf("Total_bridge_added_after_initial_bridge_setup=%d\n", globals.bridgeAuth->numAddedBridges);
+	printf("Total_failed_bridge_acceses=%ld\n", totalFailedBridgeAccesses);
+	printf("Total_blocked_bridge_acceses=%ld\n", totalBlockedBridgeAccesses);
+	printf("Total_dropped_bridge_acceses=%ld\n", totalDroppedBridgeAccesses);
 
 	uint64_t totalBridgeAccesses = 0;	
 	for (int i = 0; i < globals.userCount; i++) {
@@ -395,6 +432,7 @@ void printInputs() {
 	printf("reportWeight=%f\n", globals.reportWeight);
 	printf("bridgeStatsDiffWeight=%f\n", globals.bridgeStatsDiffWeight);
 	printf("minConfidenceToProbe=%f\n", globals.minConfidenceToProbe);			
+	printf("nonSuspicious BridgeProbeChancePercent=%f\n", globals.nonSusProbeChancePercent);			
 	printf("**********************************\n");
 	
 	printf("------------------------------------------------------------\n\n");
@@ -539,6 +577,9 @@ int main(int argc, char** argv) {
 		}
 		else if (strcmp(argv[i], "-rpp") == 0) {
 			globals.numRetriesPerProbe = std::stoi(argv[++i]);
+		}
+		else if (strcmp(argv[i], "-nsbpc") == 0) {
+			globals.nonSusProbeChancePercent = std::stod(argv[++i]);
 		}
 		else {
             std::cout<<"ERROR: bad argument "<<argv[i]<<std::endl;

@@ -23,12 +23,15 @@ public:
 		blockChance = _blockChance;
 	}
 
-	void bridgeAccessFromRegionIndex(int fromRegionIndex, Bridge* b) {
+	void bridgeAccessFromRegionIndex(int fromRegionIndex, Bridge* b, bool isProbe = false) {
 		if (fromRegionIndex != regionIndex) {
 			return;
 		}
 
-		numBridgeAccessesFromCensoredRegion++;
+		//just for metrics tracking 
+		if (!isProbe) {
+			numBridgeAccessesFromCensoredRegion++;
+		}
 
 		double r = rng->next(100000000) / 1000000.0;		
 		if (r < blockChance) {

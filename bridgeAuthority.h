@@ -10,8 +10,6 @@
 #include <algorithm> 
 #include "xoshiro_srand.h"   
 
-#define MIN_BRIDGE_DB_SIZE 10
-
 struct UserStackNode {
 	UserStackNode* next;
 	User* user;
@@ -35,15 +33,21 @@ private:
 	int minBridgeDBSize = 1;
 	int initBridgeCount;
 
+	int maxUsersPerBucket = 10;
+	int bucketSize = 3;
+
 	//Map users to the bridges that they currently known about and can access	
 	std::map<User*, Bridge**> userBridgeMap;	
 	std::map<User*, int> userNumKnownBridgeMap;	
 	
+	// std::vector<std::vector<Bridge*>> nonFullBuckets;
+	// std::vector<std::vector<Bridge*>> fullBuckets;
+
 	//list of all bridges
 	//we could seperately have invite only / open entry bridges if we want to model that
 	std::vector<Bridge*> bridgeDB;	
 
-	void expandBridgeDB(int numNewBridges) {
+	void expandBridgeDB(int numNewBridges) {		
 		for (int i = 0; i < numNewBridges; i++) {
 			Bridge* b = new Bridge(geoIPErrorChance, messageDropChance, rng);
 			bridgeDB.push_back(b);
@@ -105,7 +109,7 @@ public:
 		minBridgeDBSize = _minBridgeDBSize;
 		bridgeDB.reserve(initBridgeCount);
 		expandBridgeDB(initBridgeCount);		
-		numAddedBridges = 0;
+		numAddedBridges = 0;		
 	}
 
 	int requestNewBridge(User* user, Bridge** userBridges) {

@@ -56,7 +56,8 @@
 				"-bsdw", "0.6", 
 				"-mctp", "0.9", 
 				"-but", "32", 
-				"-rpp", "10"
+				"-rpp", "10",
+				"-nsbpc", "5"
 			],
 			"stopAtEntry": false,
 			"cwd": "${workspaceFolder}/bin/",

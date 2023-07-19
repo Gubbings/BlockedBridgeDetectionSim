@@ -16,14 +16,17 @@ testSetup = {
     , "maxSingleUserBridgeAccessPerTimeIntervals" : ["100"]
     , "minSingleUserBridgeAccessPerTimeIntervals" : ["20"]
     , "geoIPErrorChancePercents" 		: ["10"]
-    , "regionList" 						: "ca,ru,cn,us"
+    # , "regionList" 						: "ca,ru,cn,us"
+    , "regionList" 						: "cn"
     , "censorRegionList" 				: "cn"
     , "reportThresholds" 				: ["5"]
     , "bridgeStatUsageDiffThresholds" 	: ["50"]
     , "bridgeMessageDropChancePercent" 	: ["10"]
     , "numberOfDaysForAvgBridgeStats" 	: ["7"]
-    , "percentUsersPerRegion" 			: "10,10,70,10"
+    # , "percentUsersPerRegion" 			: "10,10,70,10"
+    , "percentUsersPerRegion" 			: "100"
     , "minBridgeDBSize" 				: "1000"
+    , "nonSusBridgeProbeChancePerecent" : "5"
     , "reportWeights" 					: ["0.4"]
     , "bridgeStatsDiffWeight" 			: ["0.9"]
     , "minConfidenceToProbe" 			: ["0.9"]
@@ -39,7 +42,7 @@ dataItemCount = 0
 def runSingleTest(dataDirFullPath, binDir, itCount, hpu, totalUsers, initBridgeCount, blkChance, repChance, maxBA, minBA, geoE, regionList, censorList, reportT, bstatT, messDropC, bstatAvgDays, usersPerRegion, minBDB, reportW, bstatsW, minConfToProbe, minBUseT, probeChance, retriesPerProbe, srandSeed):
 	# os.chdir(binDir)	
 	global dataItemCount
-	cmd = "cd " + binDir + " ; ./" + testSetup["binName"] + " -i " + itCount + " -hpu " + hpu + " -u " + totalUsers + " -b " + initBridgeCount + " -blkChance " + blkChance + " -rChance " + repChance + " -maxBA " + maxBA + " -minBA " + minBA + " -ge " + geoE + " -regions " + regionList + " -censors " + censorList + " -rt " + reportT + " -bst " + bstatT + " -dropChance " + messDropC + " -bsAvgDays " + bstatAvgDays + " -upr " + usersPerRegion + " -minBDB " + minBDB + " -pChance " + probeChance + " -rw " + reportW + " -bsdw " + bstatsW + " -mctp " + minConfToProbe + " -but " + minBUseT + " -rpp " + retriesPerProbe
+	cmd = "cd " + binDir + " ; ./" + testSetup["binName"] + " -i " + itCount + " -hpu " + hpu + " -u " + totalUsers + " -b " + initBridgeCount + " -blkChance " + blkChance + " -rChance " + repChance + " -maxBA " + maxBA + " -minBA " + minBA + " -ge " + geoE + " -regions " + regionList + " -censors " + censorList + " -rt " + reportT + " -bst " + bstatT + " -dropChance " + messDropC + " -bsAvgDays " + bstatAvgDays + " -upr " + usersPerRegion + " -minBDB " + minBDB + " -pChance " + probeChance + " -rw " + reportW + " -bsdw " + bstatsW + " -mctp " + minConfToProbe + " -but " + minBUseT + " -rpp " + retriesPerProbe + " -nsbpc " + testSetup["nonSusBridgeProbeChancePerecent"]
 	if testSetup["reuseSameSrandSeed"]:
 		cmd = cmd + " -seed " + srandSeed
 	# cmd = cmd + " | tee " + dataDirFullPath + "/data" + str(dataItemCount)
