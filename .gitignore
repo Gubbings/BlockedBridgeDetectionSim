@@ -2,3 +2,4 @@ bin/*.exe
 bin/*.out
 data
 data/*
+*.exe
