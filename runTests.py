@@ -27,8 +27,8 @@ testSetup = {
     , "minBridgeDBSize" 				: "1000"
     , "nonSusBridgeProbeChancePerecent" : "5"
     , "reportWeights" 					: ["0.4"]
-    , "bridgeStatsDiffWeight" 			: ["0.9"]
-    , "minConfidenceToProbe" 			: ["0.9"]
+    , "bridgeStatsDiffWeight" 			: ["0.6"]
+    , "minConfidenceToProbe" 			: ["0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9"]
     , "minBridgeUsageThreshold" 		: ["32"]
     , "probeChancePercent" 				: ["90"]
     , "numRetriesPerProbe" 				: ["10"]

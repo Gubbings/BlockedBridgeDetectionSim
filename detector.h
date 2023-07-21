@@ -187,9 +187,12 @@ public:
 				
 				double blockedConfidence = 0;
 				double reportWeight = 0.2;
-								
-				int numReportsFromRegion = numReportsPerBridgeRegionIndex[censoredRegionIndex].find(b) == numReportsPerBridgeRegionIndex[censoredRegionIndex].end() 
-				  ? 0 : numReportsPerBridgeRegionIndex[censoredRegionIndex][b];
+
+				int numReportsFromRegion = 0;				
+				if (numReportsPerBridgeRegionIndex[censoredRegionIndex].find(b) != numReportsPerBridgeRegionIndex[censoredRegionIndex].end()) {
+					numReportsFromRegion = numReportsPerBridgeRegionIndex[censoredRegionIndex][b];
+					numReportsPerBridgeRegionIndex[censoredRegionIndex][b] = 0;
+				}				
 								
 				double reportConfidence = numReportsFromRegion >= reportThreshold ? reportThreshold : numReportsFromRegion;
 				reportConfidence = reportWeight * std::min(1.0, (reportConfidence / reportThreshold));
@@ -201,6 +204,7 @@ public:
 				double bStatsConfidence =  bridgeStatsDiffWeight * std::min(1.0, std::max(0.0, (bridgeStatsDiffFromAvg / (bStatsHistoricalAvg * 1.0))));
 				
 #ifdef DEBUG3
+				printf("bridge=%p, ", b);
 				printf("reps=%d, ", numReportsFromRegion);
 				printf("bstat-avg=%ld, ", bStatsHistoricalAvg);
 				printf("bstat-curr=%d, ", b->getCurrentDailyUsageFromRegionIndex(censoredRegionIndex));
