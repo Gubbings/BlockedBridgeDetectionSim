@@ -20,7 +20,6 @@ testSetup = {
     , "regionList" 						: "cn"
     , "censorRegionList" 				: "cn"
     , "reportThresholds" 				: ["5"]
-    , "bridgeStatUsageDiffThresholds" 	: ["50"]
     , "bridgeMessageDropChancePercent" 	: ["10"]
     , "numberOfDaysForAvgBridgeStats" 	: ["7"]
     # , "percentUsersPerRegion" 			: "10,10,70,10"
@@ -39,10 +38,10 @@ testSetup = {
 
 dataItemCount = 0
 
-def runSingleTest(dataDirFullPath, binDir, itCount, hpu, totalUsers, initBridgeCount, blkChance, repChance, maxBA, minBA, geoE, regionList, censorList, reportT, bstatT, messDropC, bstatAvgDays, usersPerRegion, minBDB, reportW, bstatsW, minConfToProbe, minBUseT, probeChance, retriesPerProbe, srandSeed):
+def runSingleTest(dataDirFullPath, binDir, itCount, hpu, totalUsers, initBridgeCount, blkChance, repChance, maxBA, minBA, geoE, regionList, censorList, reportT, messDropC, bstatAvgDays, usersPerRegion, minBDB, reportW, bstatsW, minConfToProbe, minBUseT, probeChance, retriesPerProbe, srandSeed):
 	# os.chdir(binDir)	
 	global dataItemCount
-	cmd = "cd " + binDir + " ; ./" + testSetup["binName"] + " -i " + itCount + " -hpu " + hpu + " -u " + totalUsers + " -b " + initBridgeCount + " -blkChance " + blkChance + " -rChance " + repChance + " -maxBA " + maxBA + " -minBA " + minBA + " -ge " + geoE + " -regions " + regionList + " -censors " + censorList + " -rt " + reportT + " -bst " + bstatT + " -dropChance " + messDropC + " -bsAvgDays " + bstatAvgDays + " -upr " + usersPerRegion + " -minBDB " + minBDB + " -pChance " + probeChance + " -rw " + reportW + " -bsdw " + bstatsW + " -mctp " + minConfToProbe + " -but " + minBUseT + " -rpp " + retriesPerProbe + " -nsbpc " + testSetup["nonSusBridgeProbeChancePerecent"]
+	cmd = "cd " + binDir + " ; ./" + testSetup["binName"] + " -i " + itCount + " -hpu " + hpu + " -u " + totalUsers + " -b " + initBridgeCount + " -blkChance " + blkChance + " -rChance " + repChance + " -maxBA " + maxBA + " -minBA " + minBA + " -ge " + geoE + " -regions " + regionList + " -censors " + censorList + " -rt " + reportT + " -dropChance " + messDropC + " -bsAvgDays " + bstatAvgDays + " -upr " + usersPerRegion + " -minBDB " + minBDB + " -pChance " + probeChance + " -rw " + reportW + " -bsdw " + bstatsW + " -mctp " + minConfToProbe + " -but " + minBUseT + " -rpp " + retriesPerProbe + " -nsbpc " + testSetup["nonSusBridgeProbeChancePerecent"]
 	if testSetup["reuseSameSrandSeed"]:
 		cmd = cmd + " -seed " + srandSeed
 	# cmd = cmd + " | tee " + dataDirFullPath + "/data" + str(dataItemCount)
@@ -79,16 +78,15 @@ def runTrials(dataDirFullPath, srandSeed):
 				for minBA in testSetup["minSingleUserBridgeAccessPerTimeIntervals"]:
 					for geoE in testSetup["geoIPErrorChancePercents"]:
 						for repT in testSetup["reportThresholds"]:
-							for bstatsT in testSetup["bridgeStatUsageDiffThresholds"]:
-								for messDropC in testSetup["bridgeMessageDropChancePercent"]:
-									for bstatsAvgDays in testSetup["numberOfDaysForAvgBridgeStats"]:
-										for repW in testSetup["reportWeights"]:
-											for bstatsW in testSetup["bridgeStatsDiffWeight"]:
-												for minConfToProbe in testSetup["minConfidenceToProbe"]:
-													for minBUseT in testSetup["minBridgeUsageThreshold"]:
-														for probeC in testSetup["probeChancePercent"]:
-															for probeRetries in testSetup["numRetriesPerProbe"]:
-																runSingleTest(dataDirFullPath, testSetup["binDir"], itCount, hpu, totalUsers, initBridgeCount, blockChanceP, reportChanceP, maxBA, minBA, geoE, regList, cenList, repT, bstatsT, messDropC, bstatsAvgDays, userPerReg, minBDB, repW, bstatsW, minConfToProbe, minBUseT, probeC, probeRetries, srandSeed)
+							for messDropC in testSetup["bridgeMessageDropChancePercent"]:
+								for bstatsAvgDays in testSetup["numberOfDaysForAvgBridgeStats"]:
+									for repW in testSetup["reportWeights"]:
+										for bstatsW in testSetup["bridgeStatsDiffWeight"]:
+											for minConfToProbe in testSetup["minConfidenceToProbe"]:
+												for minBUseT in testSetup["minBridgeUsageThreshold"]:
+													for probeC in testSetup["probeChancePercent"]:
+														for probeRetries in testSetup["numRetriesPerProbe"]:
+															runSingleTest(dataDirFullPath, testSetup["binDir"], itCount, hpu, totalUsers, initBridgeCount, blockChanceP, reportChanceP, maxBA, minBA, geoE, regList, cenList, repT, messDropC, bstatsAvgDays, userPerReg, minBDB, repW, bstatsW, minConfToProbe, minBUseT, probeC, probeRetries, srandSeed)
 
 def main():
 	print("Running tests")

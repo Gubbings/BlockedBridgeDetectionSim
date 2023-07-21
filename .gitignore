@@ -3,3 +3,4 @@ bin/*.out
 data
 data/*
 *.exe
+output.txt

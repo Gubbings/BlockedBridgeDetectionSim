@@ -46,7 +46,6 @@
 				"-regions", "ca,ru,cn,us", 
 				"-censors", "cn", 
 				"-rt", "5", 
-				"-bst", "50", 
 				"-dropChance", "10", 
 				"-bsAvgDays", "7", 
 				"-upr", "10,10,70,10", 

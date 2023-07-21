@@ -9,6 +9,7 @@
 
 // #define DEBUG1
 // #define DEBUG2
+#define DEBUG3
 // #define DEBUG_SANITY
 
 
@@ -49,7 +50,6 @@ struct simGlobals {
 	//detector related
 	Detector* blockDetector;
 	int reportThreshold;
-	int bridgeStatDiffThreshold;
 	int numberOfDaysForAvgBridgeStats;
 	double probeChancePercent;		
 	double reportWeight;
@@ -110,7 +110,8 @@ void parseConfigFile(std::string &configFileRelativePath) {
 			globals.srandSeed = std::stol(line);		
 		}
 		else {
-			globals.srandSeed = rand();					
+			// globals.srandSeed = rand();
+			globals.srandSeed = time(NULL);
 		}
 		globals.rng.setSeed(globals.srandSeed);
 
@@ -150,8 +151,6 @@ void parseConfigFile(std::string &configFileRelativePath) {
 
 		getline(configFile,line);
 		globals.reportThreshold = std::stoi(line.substr(line.find("=")+1, line.length()));		
-		getline(configFile,line);
-		globals.bridgeStatDiffThreshold = std::stoi(line.substr(line.find("=")+1, line.length()));		
 		getline(configFile,line);
 		globals.messageDropChance = std::stod(line.substr(line.find("=")+1, line.length()));		
 		getline(configFile,line);
@@ -213,7 +212,7 @@ void init() {
 		censors.push_back(new Censor(censorRegionIndex, globals.blockChance, &globals.rng));
 	}
 	
-	globals.blockDetector = new Detector(globals.bridgeAuth, globals.reportThreshold, globals.bridgeStatDiffThreshold, globals.numberOfDaysForAvgBridgeStats, globals.probeChancePercent, globals.reportWeight, globals.bridgeStatsDiffWeight, globals.minConfidenceToProbe, globals.bridgeUsageThreshold, globals.numRetriesPerProbe, globals.nonSusProbeChancePercent, &globals.rng);
+	globals.blockDetector = new Detector(globals.bridgeAuth, globals.reportThreshold, globals.numberOfDaysForAvgBridgeStats, globals.probeChancePercent, globals.reportWeight, globals.bridgeStatsDiffWeight, globals.minConfidenceToProbe, globals.bridgeUsageThreshold, globals.numRetriesPerProbe, globals.nonSusProbeChancePercent, &globals.rng);
 
 	// #pragma openmp parallel for
 	for (int i = 0; i < globals.userCount; i++) {
@@ -344,15 +343,15 @@ void printOutputs() {
 		totalDroppedBridgeAccesses += globals.regularUsers[i].numDroppedBridgeAccesses;
 	}
 	// printf("\n");
-	printf("Total_failed_bridge_acceses=%ld\n", totalFailedBridgeAccesses);
-	printf("Total_blocked_bridge_acceses=%ld\n", totalBlockedBridgeAccesses);
-	printf("Total_dropped_bridge_acceses=%ld\n", totalDroppedBridgeAccesses);
+	printf("total_failed_bridge_acceses=%ld\n", totalFailedBridgeAccesses);
+	printf("total_blocked_bridge_acceses=%ld\n", totalBlockedBridgeAccesses);
+	printf("total_dropped_bridge_acceses=%ld\n", totalDroppedBridgeAccesses);
 
 	uint64_t totalBridgeAccesses = 0;	
 	for (int i = 0; i < globals.userCount; i++) {
 		totalBridgeAccesses += globals.regularUsers[i].numBridgeAccesses;
 	}
-	printf("Total_bridge_accesses= %ld\n", totalBridgeAccesses);
+	printf("Total_bridge_accesses=%ld\n", totalBridgeAccesses);
 
 	uint64_t totalBridgeAccessesFromCensoredRegions = 0;
 	for (int i = 0; i < censors.size(); i++) {
@@ -368,8 +367,16 @@ void printOutputs() {
 	printf("total_blocks_detected=%ld\n", globals.blockDetector->getDetectedBlockagesCount());
 	printf("total_suspicious_bridges=%ld\n", globals.blockDetector->getTotalSuspiciousBridgesCount());
 	printf("total_probes_launched=%ld\n", globals.blockDetector->getNumLaunchedProbes());
-	printf("total_times_bstats_daily_usage_dropped_below_threshold=%ld\n", globals.blockDetector->getBstatsDiffBelowThresholdCount());
 	printf("total_times_bstats_diff_dropped_below_threshold=%ld\n", globals.blockDetector->getBstatsUsageBelowThresholdCount());
+	
+	printf("total_step1_true_positives=%ld\n", globals.blockDetector->step1TruePos);
+	printf("total_step1_true_negatives=%ld\n", globals.blockDetector->step1TrueNeg);
+	printf("total_step1_correct_detections=%ld\n", globals.blockDetector->step1TruePos + globals.blockDetector->step1TrueNeg);
+	
+	
+	printf("total_step1_false_positives=%ld\n", globals.blockDetector->step1FalsePos);
+	printf("total_step1_false_negatives=%ld\n", globals.blockDetector->step1FalseNeg);
+	printf("total_step1_incorrect_detections=%ld\n", globals.blockDetector->step1FalsePos + globals.blockDetector->step1FalseNeg);
 
 
 	printf("\n");
@@ -426,7 +433,6 @@ void printInputs() {
 	printf("numRetriesPerProbe=%d\n", globals.numRetriesPerProbe);
 	printf("numberOfDaysForAvgBridgeStats=%d\n", globals.numberOfDaysForAvgBridgeStats);
 	printf("reportThreshold=%d\n", globals.reportThreshold);
-	printf("bridgeStatDiffThreshold=%d\n", globals.bridgeStatDiffThreshold);		
 	printf("bridgeUsageThreshold=%d\n", globals.bridgeUsageThreshold);
 	printf("probeChancePercent=%f\n", globals.probeChancePercent);	
 	printf("reportWeight=%f\n", globals.reportWeight);
@@ -528,9 +534,6 @@ int main(int argc, char** argv) {
 		}
 		else if (strcmp(argv[i], "-rt") == 0) {
 			globals.reportThreshold = std::stoi(argv[++i]);
-		}
-		else if (strcmp(argv[i], "-bst") == 0) {
-			globals.bridgeStatDiffThreshold = std::stoi(argv[++i]);
 		}
 		else if (strcmp(argv[i], "-dropChance") == 0) {
 			globals.messageDropChance = std::stod(argv[++i]);

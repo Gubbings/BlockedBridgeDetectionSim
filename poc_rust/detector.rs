@@ -7,11 +7,14 @@ use std::fs::File;
 use std::io::prelude::*;
 
 
-static BSTATS_FILE: &str = "bridge_stats_example";
+static EXTRA_INFO_FILE: &str = "extr_info_example";
+static SEVER_DESC_FILE: &str = "server_descriptors_example";
 
 
 struct Bridge {
-    id: String,
+    name: String,
+	router: String,
+	master_key: String,	
     dirreq_v3_ips: HashMap<String,u64>    
 }
 
@@ -28,11 +31,15 @@ impl Dector {
 
 	}
 
+	fn parse_sever_descriptors_file(&mut self) {
+
+	}
+
 	fn parse_bstats_file(&mut self) {
 		println!("Parsing example bridge stats file");
 		
 		let mut result = Vec::new();
-		let file = File::open(BSTATS_FILE).expect("could not open file");
+		let file = File::open(EXTRA_INFO_FILE).expect("could not open file");
 		let mut buf_reader = BufReader::new(file);
 		let mut contents = String::new();
 		buf_reader.read_to_string(&mut contents).expect("could not read file");

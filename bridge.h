@@ -108,4 +108,8 @@ public:
 		}
 		return 0;
 	}
+
+	bool isBlockedFromRegionIndex(int regionIndex) {
+		return perRegionIndexBlockage[regionIndex];
+	}
 };
