@@ -4,3 +4,5 @@ data
 data/*
 *.exe
 output.txt
+*.png
+*.txt

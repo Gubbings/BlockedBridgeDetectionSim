@@ -9,7 +9,9 @@
 #include <vector>
 #include <string>
 #include <algorithm>
-#include <math.h>       
+#include <math.h>    
+#include <chrono>
+
 
 
 #define MAX_NUM_REGIONS 8
@@ -73,6 +75,9 @@ private:
 	double nonSusProbeChancePercent;
 	int bridgeUsageThreshold;
 	int retriesPerProbe;
+
+	uint64_t durationTotal = 0;
+	uint64_t durationCount = 0;
 
 
 	long bridgeStatsDailyDiff(Bridge* b, int regionIndex) {
@@ -157,7 +162,11 @@ public:
 
 	// Generic update function to perform tasks per time interval of main
 	// update loop 
-	void update() {
+	void update() {		
+		durationCount++;
+		std::chrono::high_resolution_clock::time_point t1, t2;
+		t1 = std::chrono::high_resolution_clock::now(); 
+
 		int numNewBlocks = 0;
 		
 		std::map<Bridge*, UserStackNode*>::iterator it;
@@ -303,6 +312,9 @@ public:
 #ifdef DEBUG2
 		printf("Num blocked bridges = %ld\n", blockedBridgeDetectionCount);		
 #endif
+
+		t2 = std::chrono::high_resolution_clock::now();
+		durationTotal += std::chrono::duration_cast<std::chrono::nanoseconds>( t2 - t1 ).count();;
 	}
 
 	void reportBridgeFromRegionIndex(Bridge* bridge, int regionIndex) {		
@@ -329,5 +341,15 @@ public:
 
 	uint64_t getTotalSuspiciousBridgesCount() {
 		return totalSuspiciousBridges;
+	}
+
+	void printAverageRuntimeOfUpdate() {
+		double avg = (durationTotal / durationCount * 1.0);
+		printf("average_nanoseconds_of_detector_update=%f\n", avg);
+	}
+
+	void printAverageProbesLaunchedPerUpdate() {
+		double avg = (launchedProbes / durationCount * 1.0);
+		printf("average_probes_per_detector_update=%f\n", avg);
 	}
 };

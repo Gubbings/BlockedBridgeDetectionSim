@@ -7,14 +7,16 @@ testSetup = {
     , "binDir" 							: "bin"
     , "dataDir" 						: "data"
     , "numTrials"						: 1    
-    , "iterationCount" 					: "1000"
+    , "iterationCount" 					: "4000"
     , "hoursPerUpdates" 				: "12"
-    , "totalUsers" 						: "10000"
-    , "initBridgeCounts" 				: "3500"
-    , "blockChancePercents" 			: ["0.05"]
+    # , "totalUsers" 						: ["1000", "10000", "25000", "50000", "75000", "100000"]
+    , "totalUsers" 						: ["60000"]
+    # , "initBridgeCounts" 				: ["1000", "2000", "3500"]
+    , "initBridgeCounts" 				: ["3500"]
+    , "blockChancePercents" 			: ["0.001"]
     , "reportChancePercents" 			: ["50"]
-    , "maxSingleUserBridgeAccessPerTimeIntervals" : ["100"]
-    , "minSingleUserBridgeAccessPerTimeIntervals" : ["20"]
+    , "maxSingleUserBridgeAccessPerTimeIntervals" : ["10"]
+    , "minSingleUserBridgeAccessPerTimeIntervals" : ["0"]
     , "geoIPErrorChancePercents" 		: ["10"]
     # , "regionList" 						: "ca,ru,cn,us"
     , "regionList" 						: "cn"
@@ -24,13 +26,15 @@ testSetup = {
     , "numberOfDaysForAvgBridgeStats" 	: ["7"]
     # , "percentUsersPerRegion" 			: "10,10,70,10"
     , "percentUsersPerRegion" 			: "100"
-    , "minBridgeDBSize" 				: "1000"
+    , "minBridgeDBSize" 				: "500"
     , "nonSusBridgeProbeChancePerecent" : "5"
     , "reportWeights" 					: ["0.4"]
     , "bridgeStatsDiffWeight" 			: ["0.6"]
-    , "minConfidenceToProbe" 			: ["0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9"]
-    , "minBridgeUsageThreshold" 		: ["32"]
-    , "probeChancePercent" 				: ["90"]
+    , "minConfidenceToProbe" 			: ["0.0", "0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "1.0"]
+    # , "minConfidenceToProbe" 			: ["0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9"]
+    # , "minConfidenceToProbe" 			: ["0.8"]
+    , "minBridgeUsageThreshold" 		: ["1"]
+    , "probeChancePercent" 				: ["80"]
     , "numRetriesPerProbe" 				: ["10"]
     , "reuseSameSrandSeed" 				: False
     , "srandSeed"						: ""
@@ -68,25 +72,25 @@ def runTrials(dataDirFullPath, srandSeed):
 	regList = testSetup["regionList"]
 	cenList = testSetup["censorRegionList"]
 	userPerReg = testSetup["percentUsersPerRegion"]
-	totalUsers = testSetup["totalUsers"]
 	hpu = testSetup["hoursPerUpdates"]
-	initBridgeCount = testSetup["initBridgeCounts"]
 
-	for blockChanceP in testSetup["blockChancePercents"]:
-		for reportChanceP in testSetup["reportChancePercents"]:
-			for maxBA in testSetup["maxSingleUserBridgeAccessPerTimeIntervals"]:
-				for minBA in testSetup["minSingleUserBridgeAccessPerTimeIntervals"]:
-					for geoE in testSetup["geoIPErrorChancePercents"]:
-						for repT in testSetup["reportThresholds"]:
-							for messDropC in testSetup["bridgeMessageDropChancePercent"]:
-								for bstatsAvgDays in testSetup["numberOfDaysForAvgBridgeStats"]:
-									for repW in testSetup["reportWeights"]:
-										for bstatsW in testSetup["bridgeStatsDiffWeight"]:
-											for minConfToProbe in testSetup["minConfidenceToProbe"]:
-												for minBUseT in testSetup["minBridgeUsageThreshold"]:
-													for probeC in testSetup["probeChancePercent"]:
-														for probeRetries in testSetup["numRetriesPerProbe"]:
-															runSingleTest(dataDirFullPath, testSetup["binDir"], itCount, hpu, totalUsers, initBridgeCount, blockChanceP, reportChanceP, maxBA, minBA, geoE, regList, cenList, repT, messDropC, bstatsAvgDays, userPerReg, minBDB, repW, bstatsW, minConfToProbe, minBUseT, probeC, probeRetries, srandSeed)
+	for totalUsers in testSetup["totalUsers"]:
+		for initBridgeCount in testSetup["initBridgeCounts"]:
+			for blockChanceP in testSetup["blockChancePercents"]:
+				for reportChanceP in testSetup["reportChancePercents"]:
+					for maxBA in testSetup["maxSingleUserBridgeAccessPerTimeIntervals"]:
+						for minBA in testSetup["minSingleUserBridgeAccessPerTimeIntervals"]:
+							for geoE in testSetup["geoIPErrorChancePercents"]:
+								for repT in testSetup["reportThresholds"]:
+									for messDropC in testSetup["bridgeMessageDropChancePercent"]:
+										for bstatsAvgDays in testSetup["numberOfDaysForAvgBridgeStats"]:
+											for repW in testSetup["reportWeights"]:
+												for bstatsW in testSetup["bridgeStatsDiffWeight"]:
+													for minConfToProbe in testSetup["minConfidenceToProbe"]:
+														for minBUseT in testSetup["minBridgeUsageThreshold"]:
+															for probeC in testSetup["probeChancePercent"]:
+																for probeRetries in testSetup["numRetriesPerProbe"]:
+																	runSingleTest(dataDirFullPath, testSetup["binDir"], itCount, hpu, totalUsers, initBridgeCount, blockChanceP, reportChanceP, maxBA, minBA, geoE, regList, cenList, repT, messDropC, bstatsAvgDays, userPerReg, minBDB, repW, bstatsW, minConfToProbe, minBUseT, probeC, probeRetries, srandSeed)
 
 def main():
 	print("Running tests")

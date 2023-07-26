@@ -9,7 +9,7 @@
 
 // #define DEBUG1
 // #define DEBUG2
-#define DEBUG3
+// #define DEBUG3
 // #define DEBUG_SANITY
 
 
@@ -378,6 +378,8 @@ void printOutputs() {
 	printf("total_step1_false_negatives=%ld\n", globals.blockDetector->step1FalseNeg);
 	printf("total_step1_incorrect_detections=%ld\n", globals.blockDetector->step1FalsePos + globals.blockDetector->step1FalseNeg);
 
+	globals.blockDetector->printAverageRuntimeOfUpdate();
+	globals.blockDetector->printAverageProbesLaunchedPerUpdate();
 
 	printf("\n");
 }
@@ -462,7 +464,7 @@ int main(int argc, char** argv) {
 	}
 
 	//parse args
-	globals.srandSeed = rand();
+	globals.srandSeed = time(NULL);
 	for (int i=1;i<argc;++i) {
 		if (strcmp(argv[i], "-f") == 0) {
             configFileRelativePath = argv[++i];
