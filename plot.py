@@ -12,6 +12,23 @@ fprPerThreshold = {}
 avgTprPerThresold = []
 avgFprPerThresold = []
 
+tnrPerThreshold = {}
+fnrPerThreshold = {}
+avgTnrPerThresold = []
+avgFnrPerThresold = []
+
+tpPerThreshold = {}
+tnPerThreshold = {}
+fpPerThreshold = {}
+fnPerThreshold = {}
+avgPrecisionPerThresold = []
+avgRecallPerThresold = []
+avgFpPerThresold = []
+avgFnPerThresold = []
+avgTpPerThresold = []
+avgTnPerThresold = []
+
+
 userCounts = []
 averageDetectorRuntimes = []
 averageDetectorRuntimesPerUserCount = {}
@@ -22,6 +39,12 @@ avgProbesPerThresholdDict = {}
 avgProbesPerThreshold = []
 
 def parseRocTextFile():
+	global tpPerThreshold
+	global fpPerThreshold
+	global fnPerThreshold
+	global avgPrecisionPerThresold
+	global avgRecallPerThresold
+
 	rocTxtFile = open('roc.txt', 'r')
 	
 	while True:
@@ -41,17 +64,37 @@ def parseRocTextFile():
 		tpr = tp / (tp + fn)
 		fpr = fp / (fp + tn)
 
+		tnr = tn / (tn + fp)
+		fnr = fn / (fn + tp)
+
 		if threshold not in tprPerThreshold.keys():
 			tprPerThreshold[threshold] = [tpr]
 			fprPerThreshold[threshold] = [fpr]
+
+			tnrPerThreshold[threshold] = [tnr]
+			fnrPerThreshold[threshold] = [fnr]
+
+			tpPerThreshold[threshold] = [tp]
+			tnPerThreshold[threshold] = [tn]
+			fpPerThreshold[threshold] = [fp]
+			fnPerThreshold[threshold] = [fn]
 		else:
 			tprPerThreshold[threshold].append(tpr)
 			fprPerThreshold[threshold].append(fpr)
 
+			tnrPerThreshold[threshold].append(tnr)
+			fnrPerThreshold[threshold].append(fnr)
+
+			tpPerThreshold[threshold].append(tp)
+			tnPerThreshold[threshold].append(tn)
+			fpPerThreshold[threshold].append(fp)
+			fnPerThreshold[threshold].append(tn)
+
 	global thresholds
 	thresholds = list(tprPerThreshold.keys())
 	thresholds.sort()
-	for k in tprPerThreshold.keys():
+	# for k in tprPerThreshold.keys():
+	for k in thresholds:
 		print("threshold = " + str(k))
 		# print(tprPerThreshold[k])
 		# print(fprPerThreshold[k])
@@ -60,7 +103,6 @@ def parseRocTextFile():
 		for tpr in tprPerThreshold[k]:
 			count += 1
 			total += tpr
-
 		avgTpr = total / count
 
 		count = 0
@@ -68,13 +110,87 @@ def parseRocTextFile():
 		for fpr in fprPerThreshold[k]:
 			count += 1
 			total += fpr
-
 		avgFpr = total / count
 
 		avgTprPerThresold.append(avgTpr)
 		avgFprPerThresold.append(avgFpr)
+
+
+		total = 0
+		count = 0
+		for tnr in tnrPerThreshold[k]:
+			count += 1
+			total += tnr
+		avgTnr = total / count
+
+		count = 0
+		total = 0
+		for fnr in fnrPerThreshold[k]:
+			count += 1
+			total += fnr
+		avgFnr = total / count
+
+		avgTnrPerThresold.append(avgTnr)
+		avgFnrPerThresold.append(avgFnr)
+
+		count = 0
+		total = 0
+		for tn in tnPerThreshold[k]:
+			count += 1
+			total += tn
+		avgTn = total / count
+		avgTnPerThresold.append(avgTn)
+		count = 0
+		total = 0
+		for tp in tpPerThreshold[k]:
+			count += 1
+			total += tp
+		avgTp = total / count
+		avgTpPerThresold.append(avgTp)
+		count = 0
+		total = 0
+		for fp in fpPerThreshold[k]:
+			count += 1
+			total += fp
+		avgFp = total / count
+		avgFpPerThresold.append(avgFp)
+		count = 0
+		total = 0
+		for fn in fnPerThreshold[k]:
+			count += 1
+			total += fn
+		avgFn = total / count
+		avgFnPerThresold.append(avgFn)
+		if (avgTp + avgFp == 0):
+			avgPrec = 0
+		else:
+			avgPrec = avgTp / (avgTp + avgFp)
+		if (avgTp + avgFn == 0):
+			avgRecall = 0
+		else:
+			avgRecall = avgTp / (avgTp + avgFn)
+		avgPrecisionPerThresold.append(avgPrec)
+		avgRecallPerThresold.append(avgRecall)
+	print(thresholds)
+	print()
+	print("Average TPR per threshold")
 	print(avgTprPerThresold)
+	print("Average FPR per threshold")
 	print(avgFprPerThresold)
+	print()
+	print("Average TP per threshold")
+	print(avgTpPerThresold)
+	print("Average TN per threshold")		
+	print(avgTnPerThresold)
+	print("Average FP per threshold")
+	print(avgFpPerThresold)
+	print("Average FN per threshold")
+	print(avgFnPerThresold)
+	print()
+	print("Average Precision per threshold")
+	print(avgPrecisionPerThresold)
+	print("Average Recall per threshold")
+	print(avgRecallPerThresold)
 
 
 def plotRoc():
@@ -86,9 +202,32 @@ def plotRoc():
 	ax.plot(avgFprPerThresold, avgTprPerThresold)
 	ax.set_xlabel("False Positive Rate")
 	ax.set_ylabel("True Positive Rate")
-	ax.set_title("Receiver Operating Characteristic (ROC) Curve")
+	# ax.set_title("Receiver Operating Characteristic (ROC) Curve")
 	plt.show()
 	plt.savefig("roc.png")
+
+	f, ax = plt.subplots(1)
+	ax.set_ylim(0, 1)
+	ax.set_xlim(0, 1)
+	ax.plot([0, 1], [0, 1], transform=ax.transAxes, ls="--")
+	ax.plot(avgFnrPerThresold, avgTnrPerThresold)
+	ax.set_xlabel("False Negative Rate")
+	ax.set_ylabel("True Negative Rate")
+	# ax.set_title("Receiver Operating Characteristic (ROC) Curve")
+	plt.show()
+	plt.savefig("roc2.png")
+
+def plotPrecisionRecall():
+	f, ax = plt.subplots(1)
+	# ax.set_ylim(0, 1)
+	# ax.set_xlim(0, 1)
+	# ax.plot([0, 1], [0, 1], transform=ax.transAxes, ls="--")
+	ax.plot(avgRecallPerThresold, avgPrecisionPerThresold)
+	ax.set_xlabel("Recall")
+	ax.set_ylabel("Precision")
+	ax.set_title("Precision Recall Curve")
+	plt.show()
+	plt.savefig("precisionRecall.png")
 
 def parseAverageTimeFile():
 	file = open('averageTime.txt', 'r')
@@ -139,7 +278,7 @@ def plotAverageDetectorRuntime():
 	ax.plot(userCounts, averageDetectorRuntimes)
 	ax.set_xlabel("User Count")
 	ax.set_ylabel("Avg μs / Detector Update")
-	ax.set_title("Average Micoseconds Per Detector Update\nfor Different User Counts (3500 inital bridges)")
+	# ax.set_title("Average Micoseconds Per Detector Update\nfor Different User Counts (3500 inital bridges)")
 	plt.show()
 	plt.savefig("avgRuntime.png")
 
@@ -194,14 +333,16 @@ def plotAvgProbesVsThreshold():
 	ax.plot(thresholds, avgProbesPerThreshold)
 	ax.set_xlabel("Classification Threshold (Minimum Confidence to Probe)")
 	ax.set_ylabel("Avg Probe Accesses / Detector Update")
-	ax.set_title("Average Probe Accesses Per Detector Update\nfor Different Classification  Thresholds")
+	# ax.set_title("Average Probe Accesses Per Detector Update\nfor Different Classification  Thresholds")
 	plt.show()
 	plt.savefig("avgProbes.png")
 
-def main():
+def main():	
 	plotRoc()
+	plotPrecisionRecall()	
 	plotAverageDetectorRuntime()
 	plotAvgProbesVsThreshold()
+	
 
 if __name__ == "__main__":		
 	main()	

@@ -6,13 +6,14 @@ testSetup = {
 	"binName" 							: "simulation.exe"
     , "binDir" 							: "bin"
     , "dataDir" 						: "data"
-    , "numTrials"						: 1    
+    , "numTrials"						: 1
     , "iterationCount" 					: "4000"
     , "hoursPerUpdates" 				: "12"
-    # , "totalUsers" 						: ["1000", "10000", "25000", "50000", "75000", "100000"]
-    , "totalUsers" 						: ["60000"]
+    , "totalUsers" 						: ["1000", "10000", "25000", "50000", "75000", "100000"]
+    # , "totalUsers" 						: ["60000"]
     # , "initBridgeCounts" 				: ["1000", "2000", "3500"]
-    , "initBridgeCounts" 				: ["3500"]
+    # , "initBridgeCounts" 				: ["3500"]
+    , "initBridgeCounts" 				: ["1000"]
     , "blockChancePercents" 			: ["0.001"]
     , "reportChancePercents" 			: ["50"]
     , "maxSingleUserBridgeAccessPerTimeIntervals" : ["10"]
@@ -21,20 +22,21 @@ testSetup = {
     # , "regionList" 						: "ca,ru,cn,us"
     , "regionList" 						: "cn"
     , "censorRegionList" 				: "cn"
-    , "reportThresholds" 				: ["5"]
+    , "reportThresholds" 				: ["32"]
     , "bridgeMessageDropChancePercent" 	: ["10"]
     , "numberOfDaysForAvgBridgeStats" 	: ["7"]
-    # , "percentUsersPerRegion" 			: "10,10,70,10"
+    # , "percentUsersPerRegion" 			: "20,20,40,20"
     , "percentUsersPerRegion" 			: "100"
-    , "minBridgeDBSize" 				: "500"
+    # , "minBridgeDBSize" 				: "1750"
+    , "minBridgeDBSize" 				: "5000"
     , "nonSusBridgeProbeChancePerecent" : "5"
     , "reportWeights" 					: ["0.4"]
     , "bridgeStatsDiffWeight" 			: ["0.6"]
-    , "minConfidenceToProbe" 			: ["0.0", "0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "1.0"]
+    # , "minConfidenceToProbe" 			: ["0.0", "0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "1.0"]
     # , "minConfidenceToProbe" 			: ["0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9"]
-    # , "minConfidenceToProbe" 			: ["0.8"]
-    , "minBridgeUsageThreshold" 		: ["1"]
-    , "probeChancePercent" 				: ["80"]
+    , "minConfidenceToProbe" 			: ["0.8"]
+    , "minBridgeUsageThreshold" 		: ["16"]
+    , "probeChancePercent" 				: ["90"]
     , "numRetriesPerProbe" 				: ["10"]
     , "reuseSameSrandSeed" 				: False
     , "srandSeed"						: ""

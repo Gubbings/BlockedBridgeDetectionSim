@@ -72,5 +72,14 @@
 				}
 			]
 		},
+		{
+			"name": "Plotting",
+			"type": "python",
+			"request": "launch",			
+			"program": "${workspaceFolder}/plot.py",			
+			"args": [								
+			],
+			"cwd": "${workspaceFolder}/",
+		},
 	]
 }
